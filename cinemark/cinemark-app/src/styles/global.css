@@ -1,0 +1,276 @@
+/* src/styles/global.css */
+:root {
+  --background: #0f172a;
+  --card-bg: #1e293b;
+  --primary: #e11d48; /* Vermelho Cinemark */
+  --primary-hover: #be123c;
+  --text: #f8fafc;
+  --seat-free: #22c55e;
+  --seat-occupied: #64748b;
+  --seat-selected: #fbbf24;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.main-title {
+  text-align: center;
+  margin-bottom: 2.5rem;
+  font-size: 2.5rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+/* Grid Responsivo */
+.grid-filmes {
+  display: grid;
+  /* Garante que os cards se ajustem sozinhos ao tamanho da tela */
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 2.5rem;
+}
+
+/* Card de Filme */
+.card-filme {
+  background-color: var(--card-bg);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  border: 2px solid transparent; /* Reserva espaço para a borda */
+}
+
+/* Efeito de Margem Vermelha ao clicar/focar */
+.card-filme:focus, .card-filme:active {
+  outline: none;
+  border-color: var(--primary);
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(225, 29, 72, 0.3);
+}
+
+/* Padronização das Imagens */
+.image-wrapper {
+  width: 100%;
+  height: 320px; /* Altura fixa para todas as capas */
+  overflow: hidden;
+}
+
+.image-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* Faz a imagem preencher o espaço sem distorcer */
+  transition: transform 0.5s ease;
+}
+
+.card-filme:hover img {
+  transform: scale(1.1);
+}
+
+/* Informações do Card */
+.card-info {
+  padding: 1.2rem;
+  text-align: center;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.card-info h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+  min-height: 2.5rem; /* Garante alinhamento mesmo com títulos longos */
+}
+
+/* Botão de Ingressos Estilizado */
+.btn-comprar {
+  background-color: var(--primary);
+  color: white;
+  text-decoration: none;
+  padding: 0.8rem 1rem;
+  border-radius: 6px;
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 0.9rem;
+  transition: background 0.3s;
+}
+
+.btn-comprar:hover {
+  background-color: var(--primary-hover);
+}
+
+/* Estilos do Mapa de Assentos (Mantidos e Melhorados) */
+.seats-grid {
+  display: grid;
+  grid-template-columns: repeat(15, 1fr); 
+  gap: 8px;
+  max-width: 100%;
+  overflow-x: auto; /* Permite scroll em telas muito pequenas */
+  padding: 10px;
+}
+
+@media (max-width: 600px) {
+  .seats-grid {
+    gap: 4px;
+  }
+  .seat {
+    width: 20px;
+    height: 20px;
+    font-size: 8px;
+  }
+}
+/* Container do Cinema */
+.cinema-wrapper {
+  background: #0f172a;
+  padding: 2rem;
+  border-radius: 1rem;
+  text-align: center;
+}
+
+/* Tela Curva */
+.screen-container {
+  margin-bottom: 3rem;
+  position: relative;
+}
+
+
+.screen-curve {
+  height: 6px;
+  width: 70%;
+  margin: 0 auto 10px;
+  background: #38bdf8;
+  border-radius: 50%;
+  box-shadow: 0 10px 25px rgba(56, 189, 248, 0.6);
+}
+
+/* Estrutura de Fileiras */
+.cinema-room {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.row-label {
+  font-weight: bold;
+  color: #64748b;
+  width: 20px;
+}
+
+/* Grade de assentos dentro da fileira */
+.row-seats {
+  display: grid;
+  grid-template-columns: repeat(15, 1fr); /* Mantém 15 colunas fixas */
+  gap: 6px;
+  flex-grow: 1;
+}
+
+/* O Botão/Ícone */
+.seat-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2px;
+  transition: transform 0.2s;
+}
+
+.seat-icon {
+  width: 100%; /* Adapta ao tamanho da coluna do grid */
+  height: auto;
+  max-width: 28px;
+}
+
+.seat-num {
+  font-size: 0.55rem;
+  color: #94a3b8;
+}
+
+/* Cores por Status */
+.seat-btn.disponivel .seat-icon { color: #22c55e; }
+.seat-btn.ocupado .seat-icon { color: #475569; }
+.seat-btn.disponivel:hover { transform: scale(1.2); }
+.seat-btn.ocupado { cursor: not-allowed; }
+
+/* Legenda */
+.legend-cinema {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  margin-top: 3rem;
+  font-size: 0.9rem;
+}
+
+.leg-item { display: flex; align-items: center; gap: 8px; }
+.leg-item .free { color: #22c55e; }
+.leg-item .occ { color: #475569; }
+
+/* Media Query para Telas Pequenas (Celulares) */
+@media (max-width: 768px) {
+  .row-seats {
+    gap: 2px;
+  }
+  .row-label {
+    font-size: 0.7rem;
+    width: 10px;
+  }
+  .seat-num {
+    display: none; /* Esconde o número no celular para não amontoar */
+  }
+}
+.navigation-area {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 1.5rem;
+}
+
+.btn-home {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--card-bg);
+  color: var(--text);
+  text-decoration: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: 1px solid #334155;
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.btn-home:hover {
+  background-color: var(--primary);
+  border-color: var(--primary);
+  transform: translateX(-5px);
+}
+
+
+
+
+
+
+
+
+
