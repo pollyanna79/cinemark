@@ -238,22 +238,25 @@ app.get('/meus-pedidos', (req, res) => {
   // Certifique-se de que a view/tabela faz o JOIN usando o id_cliente correto
   const queryPedidos = `
     SELECT
-      v.ingresso_id,
-      v.filme_titulo,
-      v.imagem,
-      v.categoria,
-      v.data_filme,
-      v.cod AS pedido_numero,
-      v.nome,
-      v.data_compra,
-      v.sala,
-      v.fileira,
-      v.poltrona_id,
-      v.status_pagamento
-    FROM reservas_clientes v
-    INNER JOIN registro_clientes c ON c.id_cliente = v.id_cliente
-    WHERE c.email = ?
-    ORDER BY v.data_compra DESC
+i.id AS ingresso_id,
+    f.titulo AS filme_titulo,
+    f.capa_url AS imagem,
+    f.trailer_url AS trailer,
+    f.categoria AS categoria,
+    f.estreia AS data_filme,
+    c.id_cliente AS cod,
+    c.nome AS nome,
+    i.data_compra AS data_compra,
+    a.sala_id AS sala,
+    a.fileira AS fileira,
+    a.id AS poltrona_id,
+    i.status AS status_pagamento
+FROM ingressos i
+JOIN sessoes s ON i.sessao_id = s.id
+JOIN filmes f ON s.filme_id = f.id
+JOIN assentos a ON i.assento_id = a.id
+JOIN registro_clientes c ON i.id_cliente = c.id_cliente
+ORDER BY i.data_compra DESC;
   `;
 
   db.query(queryPedidos, [email], (err, results) => {
