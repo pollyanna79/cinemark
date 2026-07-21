@@ -135,12 +135,11 @@ app.get('/assentos/sala/:id', (req, res) => {
 });
 
 app.post('/reservar', (req, res) => {
-  const { nome, email, telefone, meio_pagamento, sessao_id, assento_ids } = req.body;
+  const { nome, email, telefone, meio_pagamento, sessao_id, sala_id, assento_ids } = req.body;
 
-  if (!nome || !email || !telefone || meio_pagamento || !sessao_id || !sala_id || !Array.isArray(assento_ids) || assento_ids.length === 0) {
+  if (!nome || !email || !telefone || !meio_pagamento || !sessao_id || !sala_id || !Array.isArray(assento_ids) || assento_ids.length === 0){
     return res.status(400).json({ error: 'Preencha todos os campos e selecione pelo menos um assento.' });
   }
-
   db.getConnection((err, connection) => {
     if (err) return res.status(500).json({ error: 'Erro interno ao conectar ao banco de dados.' });
 
