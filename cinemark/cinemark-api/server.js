@@ -228,7 +228,6 @@ app.post('/reservar', (req, res) => {
     });
   });
 });
-
 app.get('/meus-pedidos', (req, res) => {
   const { email } = req.query;
 
@@ -236,47 +235,44 @@ app.get('/meus-pedidos', (req, res) => {
     return res.status(400).json({ error: 'Informe o email para buscar seus pedidos.' });
   }
 
+  // Certifique-se de que a view/tabela faz o JOIN usando o id_cliente correto
   const queryPedidos = `
     SELECT
-    v.ingresso_id,
-    v.filme_titulo,
-    v.imagem,
-    v.categoria,
-    v.data_filme,
-    v.cod AS pedido_numero,
-    v.nome,
-    v.data_compra,
-    v.sala,
-    v.fileira,
-    v.poltrona_id,
-    v.status_pagamento
-  FROM reservas_clientes v
-  INNER JOIN registro_clientes c ON CAST(c.id_cliente AS CHAR) = CAST(v.cod AS CHAR)
-  WHERE c.email = ?
-  ORDER BY v.data_compra DESC
-`;
-db.query(queryPedidos, [email], (err, results) => {
+      v.ingresso_id,
+      v.filme_titulo,
+      v.imagem,
+      v.categoria,
+      v.data_filme,
+      v.cod AS pedido_numero,
+      v.nome,
+      v.data_compra,
+      v.sala,
+      v.fileira,
+      v.poltrona_id,
+      v.status_pagamento
+    FROM reservas_clientes v
+    INNER JOIN registro_clientes c ON c.id_cliente = v.id_cliente
+    WHERE c.email = ?
+    ORDER BY v.data_compra DESC
+  `;
+
+  db.query(queryPedidos, [email], (err, results) => {
     if (err) {
       console.error("Erro no MySQL:", err);
       return res.status(500).json({ error: 'Erro ao buscar pedidos.' });
     }
 
-    // LOG DE DIAGNÓSTICO
     console.log("Email buscado:", email);
     console.log("Resultados brutos do banco:", results);  
 
-    // Retorna os resultados (se estiver vazio, retorna um array vazio [] com status 200)
+    // Se não encontrar nada, retorna um array vazio ou uma mensagem amigável com status 200/404 de forma controlada dentro do callback
+    if (!results || results.length === 0) {
+      return res.status(404).json({ error: 'Nenhum pedido encontrado para este email.' });
+    }
+
     return res.json(results);
   });
-
-  if (results.length === 0) {
-    return res.status(404).json({ error: 'Nenhum pedido encontrado para este email.' });
-  }
-
-  res.json(results);
 });
-});
-
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log(`Servidor rodando em http://localhost:${port}`);
