@@ -256,6 +256,7 @@ JOIN sessoes s ON i.sessao_id = s.id
 JOIN filmes f ON s.filme_id = f.id
 JOIN assentos a ON i.assento_id = a.id
 JOIN registro_clientes c ON i.id_cliente = c.id_cliente
+WHERE c.email = ?
 ORDER BY i.data_compra DESC;
   `;
 
