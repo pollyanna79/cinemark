@@ -255,15 +255,19 @@ app.get('/meus-pedidos', (req, res) => {
   WHERE c.email = ?
   ORDER BY v.data_compra DESC
 `;
-  db.query(queryPedidos, [email], (err, results) => {
-  if (err) {
-    console.error("Erro no MySQL:", err); // Verifique o terminal do Node
-    return res.status(500).json({ error: 'Erro ao buscar pedidos.' });
-  }
+db.query(queryPedidos, [email], (err, results) => {
+    if (err) {
+      console.error("Erro no MySQL:", err);
+      return res.status(500).json({ error: 'Erro ao buscar pedidos.' });
+    }
 
-  // LOG DE DIAGNÓSTICO
-  console.log("Email buscado:", email);
-  console.log("Resultados brutos do banco:", results); 
+    // LOG DE DIAGNÓSTICO
+    console.log("Email buscado:", email);
+    console.log("Resultados brutos do banco:", results);  
+
+    // Retorna os resultados (se estiver vazio, retorna um array vazio [] com status 200)
+    return res.json(results);
+  });
 
   if (results.length === 0) {
     return res.status(404).json({ error: 'Nenhum pedido encontrado para este email.' });
