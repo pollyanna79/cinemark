@@ -1,18 +1,22 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
 import MapaAssentos from './pages/MapaAssentos';
+import MeusPedidos from './pages/MeusPedidos';
+import Header from './components/Header';
+import Footer from './components/Footer';
 
 function App() {
   return (
     <BrowserRouter>
-    
-      <Routes>
-        {/* Rota para a lista de filmes */}
-        <Route path="/" element={<Home />} />
-        
-        {/* Rota para o mapa de 75 assentos (passando o ID da sessão) */}
-        <Route path="/sessao/:id" element={<MapaAssentos />} />
-      </Routes>
+      <Header />
+      <main className="app-main">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/sessao/:id" element={<MapaAssentos />} />
+          <Route path="/meus-pedidos" element={<MeusPedidos />} />
+        </Routes>
+      </main>
+      <Footer />
     </BrowserRouter>
   );
 }

@@ -89,6 +89,7 @@
     height: 22px;
   }
 
+
   @media (max-width: 1024px) {
     flex-direction: column;
     text-align: center;
@@ -182,3 +183,4 @@
     border-right-color: var(--border);
   }
 }
+

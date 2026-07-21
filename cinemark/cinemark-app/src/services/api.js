@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const api = axios.create({
   // URL do seu futuro servidor Node/Express
-  baseURL: 'http://127.0.0.1:3000', 
+  baseURL: import.meta.env.VITE_API_URL || 'https://cinemark-z3wn.onrender.com' 
 });
 
 export default api;

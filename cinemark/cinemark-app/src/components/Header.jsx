@@ -1,17 +1,25 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Clapperboard } from 'lucide-react'; // Ícone de claquete
+import { Clapperboard, Ticket } from 'lucide-react';
 
 export default function Header() {
   return (
     <header className="main-header">
-      <nav className="container nav-content">
+      <div className="container header-top">
         <Link to="/" className="logo">
-          <Clapperboard size={32} color="#e11d48" />
-          <span>CineMark</span>
+          <Clapperboard size={45} />
+          <div>
+            <strong className="titulo">CineMark</strong>
+            <span className="texto-piscante">Reserve seu ingresso conosco</span>
+          </div>
         </Link>
-        <Link to="/" className="nav-link">Início</Link>
-      </nav>
+        <div className="header-actions">
+          <Link to="/meus-pedidos" className="nav-button">
+            <Ticket size={18} /> Meus Pedidos
+          </Link>
+        </div>
+      </div>
+    
     </header>
   );
 }

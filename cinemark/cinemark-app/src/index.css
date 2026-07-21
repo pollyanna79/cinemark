@@ -109,3 +109,92 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+ .texto-piscante {
+  color: #fbbf24 !important;   
+  font-weight: 800 !important;    
+  text-decoration: none !important; 
+  animation: piscar 1s linear infinite;
+  display: inline-block;         
+ }
+@keyframes piscar {
+  0% { opacity: 1; }
+  50% { opacity: 0; }
+  100% { opacity: 1; }
+}
+.reservation-panel h2{
+  color:rgb(209, 223, 16);
+  text-align:center;
+}
+.footer {
+  background-color: #111827;
+  color: #fff;
+  padding: 40px 20px;
+  text-align: center; /* Centraliza tudo por padrão */
+}
+
+.footer-top {
+  margin-bottom: 30px;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.footer-bottom-grid {
+  display: flex;
+  justify-content: center;
+  gap: 100px; /* Distância entre Contato e Siga-nos */
+}
+
+/* Garante que o ícone fique ao lado do texto */
+.contact-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center; /* Centraliza o ícone + texto no meio */
+  margin: 5px 0;
+}
+
+.social-icons {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 10px;
+}
+.footer-top h3{
+  color:yellow;
+}
+.footer-section h3{
+  color:yellow;
+}
+.contact-item svg {
+  font-size: 20px;
+  margin-right: 8px;
+}
+
+/* Localização (Vermelho) */
+.icon-loc svg { color: #FF0000 !important; }
+
+/* Carta (Azul claro) */
+.icon-email svg { color: #87CEEB !important; }
+
+/* Telefone (Verde) */
+.icon-phone svg { color: #32CD32 !important; }
+
+/* Facebook (Azul) */
+.face svg { color: #1877F2 !important; font-size: 40px !important; }
+
+.insta {
+  font-size: 40px !important;
+  color: #d6249f !important; /* Cor rosa vibrante (padrão do Insta) */
+  transition: transform 0.3s ease;
+}
+
+.insta:hover {
+  transform: scale(1.2);
+}
+.face:hover {
+ transform: scale(1.2);
+}
+.titulo {
+  color:red;
+}

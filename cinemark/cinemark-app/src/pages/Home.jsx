@@ -21,6 +21,7 @@ export default function Home() {
               </div>
               <div className="card-info">
                 <h3>{filme.titulo}</h3>
+                <p className="film-premiere">Estreia: {filme.estreia ? new Date(filme.estreia).toLocaleDateString('pt-BR') : 'Data indisponível'}</p>
                 <Link to={`/sessao/${filme.id}`} className="btn-comprar">
                   Ingressos
                 </Link>
