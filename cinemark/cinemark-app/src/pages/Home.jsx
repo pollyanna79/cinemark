@@ -7,11 +7,8 @@ export default function Home() {
   const { filmes } = useFilmes();
 
 
-  // Adicione esta linha para inspecionar no console do navegador (F12)
-  console.log("Dados dos filmes:", filmes);
 
-
-  return (
+ return (
     <div className="container">
       <h1 className="main-title">Filmes em Cartaz</h1>
       <div className="grid-filmes">
@@ -26,8 +23,8 @@ export default function Home() {
               </div>
               <div className="card-info">
                 <h3>{filme.titulo}</h3>
-              <p className="film-premiere">
-  Estreia: {filme.estreia ? new Date(filme.estreia + 'T00:00:00').toLocaleDateString('pt-BR') : 'Data indisponível'}
+<p className="film-premiere">
+  Estreia: {filme.estreia ? new Date(filme.estreia.substring(0, 10) + 'T00:00:00').toLocaleDateString('pt-BR') : 'Data indisponível'}
 </p>
                 <Link to={`/sessao/${filme.id}`} className="btn-comprar">
                   Ingressos
