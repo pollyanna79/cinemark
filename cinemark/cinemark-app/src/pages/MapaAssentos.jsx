@@ -1,7 +1,7 @@
 ﻿import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import api from '../services/api';
-import { Armchair } from 'lucide-react';
+import { Armchair, CreditCard } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { FaQrcode } from 'react-icons/fa';
 
@@ -9,6 +9,7 @@ import { FaQrcode } from 'react-icons/fa';
 
 export default function MapaAssentos() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [nomeNoCartao, setNomeNoCartao] = useState('');
   const [cartaoNumero, setCartaoNumero] = useState('');
   const [cartaoData, setCartaoData] = useState('');
@@ -166,7 +167,13 @@ const validarValidade = (validade) => {
     setCartaoNumero(''); setCartaoData(''); setCartaoCvc(''); setNomeNoCartao('');
     setMeioPagamento('cartão'); setSelectedSeats([]);
 
-    setMensagem(response.data.message || 'Reserva realizada com sucesso!');
+    const numeroPedido = response.data?.codigo_pedido || response.data?.pedido;
+    window.alert(
+      numeroPedido
+        ? `Pedido confirmado com sucesso!\nNúmero do pedido: ${numeroPedido}`
+        : 'Pedido confirmado com sucesso!'
+    );
+    navigate('/');
 
     setAssentos((prev) =>
       prev.map((assento) =>
@@ -277,55 +284,107 @@ const validarValidade = (validade) => {
     <input type="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="(00) 00000-0000" />
   </div>
 
-  {/* Seleção de Pagamento */}
-  <div className="field-group">
-    <label>Meio de Pagamento</label>
-    <select value={meioPagamento} onChange={(e) => setMeioPagamento(e.target.value)} className="form-select">
-      <option value="cartão">Cartão</option>
-      <option value="pix">Pix</option>
-    </select>
-  </div>
+  <fieldset className="payment-choice">
+    <legend>Meio de pagamento</legend>
+    <div className="payment-options" role="radiogroup" aria-label="Meio de pagamento">
+      <button
+        className={`payment-option ${meioPagamento === 'cartão' ? 'is-selected' : ''}`}
+        type="button"
+        role="radio"
+        aria-checked={meioPagamento === 'cartão'}
+        onClick={() => setMeioPagamento('cartão')}
+      >
+        <CreditCard size={22} aria-hidden="true" />
+        <span className="payment-option-copy">
+          <strong>Cartão</strong>
+          <small>Crédito ou débito</small>
+        </span>
+        <span className="payment-option-check" aria-hidden="true">✓</span>
+      </button>
+      <button
+        className={`payment-option ${meioPagamento === 'pix' ? 'is-selected' : ''}`}
+        type="button"
+        role="radio"
+        aria-checked={meioPagamento === 'pix'}
+        onClick={() => setMeioPagamento('pix')}
+      >
+        <FaQrcode size={22} aria-hidden="true" />
+        <span className="payment-option-copy">
+          <strong>Pix</strong>
+          <small>Pagamento rápido</small>
+        </span>
+        <span className="payment-option-check" aria-hidden="true">✓</span>
+      </button>
+    </div>
+  </fieldset>
 
   {/* Renderização Condicional - MANTENHA ISSO DENTRO DO FORM */}
   <div className="payment-container">
     {meioPagamento === 'pix' ? (
       <div className="payment-box pix-box">
-        <h3>Pagamento via Pix</h3>
-        <div style={{ fontSize: '60px', color: '#87CEEB', margin: '10px 0' }}>
-      <FaQrcode />
-    </div>
-    <div className="pix-code">
-      <input readOnly value="PIX1234567890ABCDEF" />
-      <button type="button" onClick={() => copiarTexto("PIX1234567890ABCDEF")}>Copiar</button>
-    </div>
-  </div>
+        <div className="payment-box-title">
+          <span className="payment-icon pix-icon"><FaQrcode aria-hidden="true" /></span>
+          <div>
+            <h3>Pagamento via Pix</h3>
+            <p>Copie o código para continuar.</p>
+          </div>
+        </div>
+        <div className="pix-code">
+          <input aria-label="Código Pix" readOnly value="PIX1234567890ABCDEF" />
+          <button type="button" onClick={() => copiarTexto("PIX1234567890ABCDEF")}>Copiar código</button>
+        </div>
+      </div>
         
     ) : (
       <div className="payment-box card-box">
-        <h3>Dados do Cartão</h3>
-        <input 
-    placeholder="Nome impresso no cartão" 
-    value={nomeNoCartao} 
-    onChange={(e) => setNomeNoCartao(e.target.value.toUpperCase())} // Sempre maiúsculo
-  />
-        <input 
-      placeholder="Número do cartão" 
-      value={cartaoNumero} 
-      onChange={(e) => setCartaoNumero(e.target.value)} 
-    />
-        <div style={{ display: 'flex', gap: '10px' }}>
-         <input 
-        placeholder="MM/AA" 
-        value={cartaoData} 
-        onChange={(e) => setCartaoData(e.target.value)} 
-      />
-      <input 
-        placeholder="CVC" 
-        value={cartaoCvc} 
-        onChange={(e) => setCartaoCvc(e.target.value)} 
-      />
+        <div className="payment-box-title">
+          <span className="payment-icon card-icon"><CreditCard aria-hidden="true" /></span>
+          <div>
+            <h3>Dados do cartão</h3>
+            <p>Informe os dados do titular.</p>
+          </div>
         </div>
-        <p className="secure-info">🔒 Site seguro - Seus dados estão protegidos.</p>
+        <div className="card-fields">
+          <label className="payment-field card-name-field">
+            <span>Nome no cartão</span>
+            <input
+              autoComplete="cc-name"
+              placeholder="Nome impresso no cartão"
+              value={nomeNoCartao}
+              onChange={(e) => setNomeNoCartao(e.target.value.toUpperCase())}
+            />
+          </label>
+          <label className="payment-field card-number-field">
+            <span>Número do cartão</span>
+            <input
+              autoComplete="cc-number"
+              inputMode="numeric"
+              placeholder="0000 0000 0000 0000"
+              value={cartaoNumero}
+              onChange={(e) => setCartaoNumero(e.target.value)}
+            />
+          </label>
+          <label className="payment-field">
+            <span>Validade</span>
+            <input
+              autoComplete="cc-exp"
+              placeholder="MM/AA"
+              value={cartaoData}
+              onChange={(e) => setCartaoData(e.target.value)}
+            />
+          </label>
+          <label className="payment-field">
+            <span>Código de segurança</span>
+            <input
+              autoComplete="cc-csc"
+              inputMode="numeric"
+              placeholder="CVC"
+              value={cartaoCvc}
+              onChange={(e) => setCartaoCvc(e.target.value)}
+            />
+          </label>
+        </div>
+        <p className="secure-info">🔒 Seus dados do cartão são protegidos.</p>
       </div>
     )}
   </div>

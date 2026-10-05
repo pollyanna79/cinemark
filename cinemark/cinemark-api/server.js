@@ -135,11 +135,11 @@ app.get('/assentos/sala/:id', (req, res) => {
 });
 
 app.post('/reservar', (req, res) => {
-  const { nome, email, telefone, meio_pagamento, sessao_id, sala_id, assento_ids } = req.body;
+  const { nome, email, telefone, meio_pagamento, dados_cartao, sessao_id, sala_id, assento_ids } = req.body;
 
   if (!nome || !email || !telefone || !meio_pagamento || !sessao_id || !sala_id || !Array.isArray(assento_ids) || assento_ids.length === 0){
     return res.status(400).json({ error: 'Preencha todos os campos e selecione pelo menos um assento.' });
-  }
+  } 
   db.getConnection((err, connection) => {
     if (err) return res.status(500).json({ error: 'Erro interno ao conectar ao banco de dados.' });
 
@@ -148,8 +148,7 @@ app.post('/reservar', (req, res) => {
         connection.release();
         return res.status(500).json({ error: 'Erro interno ao iniciar transação.' });
       }
-
-      const findCliente = 'SELECT id_cliente FROM registro_clientes WHERE email = ? LIMIT 1';
+const findCliente = 'SELECT id_cliente FROM registro_clientes WHERE email = ? LIMIT 1';
       connection.query(findCliente, [email], (findErr, findResult) => {
         if (findErr) {
           return connection.rollback(() => {
@@ -170,7 +169,7 @@ app.post('/reservar', (req, res) => {
             if (checkErr) {
               return connection.rollback(() => {
                 connection.release();
-                res.status(500).json({ error: 'Erro ao verificar disponibilidade dos assentos.' });
+                res.status(409).json({ error: 'Erro ao verificar disponibilidade dos assentos.' });
               });
             }
 
@@ -207,13 +206,61 @@ app.post('/reservar', (req, res) => {
             });
           });
         };
+const codigoS = 'RSV' + Math.random().toString(36).substring(2, 8).toUpperCase();
+        const numeroPedido = 'CINE' + Math.floor(1000 + Math.random() * 9000);
+        const meioPagamentoLower = meio_pagamento ? meio_pagamento.toLowerCase() : 'pix';
+        const meioPagamentoEscolhido = meioPagamentoLower.includes('pix') ? 'pix' : 'cartao';
+        
+        let dadosPagamentoValor;
+        if (meioPagamentoEscolhido === 'pix') {
+          dadosPagamentoValor = codigoS; 
+        } else {
+          dadosPagamentoValor = dados_cartao || telefone || '-'; 
+        }
 
         if (findResult.length > 0) {
-          insertIngressos(findResult[0].id_cliente);
+          // SE O CLIENTE JÁ EXISTE: Atualizamos os dados da nova compra dele na tabela
+          const clienteId = findResult[0].id_cliente;
+          const updateCliente = `
+            UPDATE registro_clientes 
+            SET nome = ?, meio_pagamento = ?, dados_pagamento = ?, codigo_s = ?, pedido = ? 
+            WHERE id_cliente = ?
+          `;
+
+          connection.query(updateCliente, [
+            nome, 
+            meioPagamentoEscolhido, 
+            dadosPagamentoValor, 
+            codigoS, 
+            numeroPedido, 
+            clienteId
+          ], (updateErr) => {
+            if (updateErr) {
+              return connection.rollback(() => {
+                connection.release();
+                res.status(500).json({ error: 'Erro ao atualizar dados do cliente.' });
+              });
+            }
+            insertIngressos(clienteId);
+          });
+
         } else {
-          const codigoS = 'RSV' + Math.random().toString(36).substring(2, 8).toUpperCase();
-          const insertCliente = 'INSERT INTO registro_clientes (nome, email, senha, meio_pagamento, dados_pagamento, codigo_s) VALUES (?, ?, ?, ?, ?, ?)';
-          connection.query(insertCliente, [nome, email, 'reserva', 'reserva', telefone || '-', codigoS], (clienteErr, clienteResult) => {
+          // SE O CLIENTE NÃO EXISTE: Criamos um novo registro
+          const insertCliente = `
+            INSERT INTO registro_clientes 
+            (nome, email, senha, meio_pagamento, dados_pagamento, codigo_s, pedido) 
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+          `;
+
+          connection.query(insertCliente, [
+            nome, 
+            email, 
+            '####', 
+            meioPagamentoEscolhido, 
+            dadosPagamentoValor, 
+            codigoS, 
+            numeroPedido
+          ], (clienteErr, clienteResult) => {
             if (clienteErr) {
               return connection.rollback(() => {
                 connection.release();
@@ -223,10 +270,7 @@ app.post('/reservar', (req, res) => {
 
             insertIngressos(clienteResult.insertId);
           });
-        }
-      });
-    });
-  });
+        }      
 });
 app.get('/meus-pedidos', (req, res) => {
   const { email } = req.query;
