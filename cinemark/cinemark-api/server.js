@@ -2,19 +2,10 @@ require('dotenv').config();
 const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
-const { randomBytes, randomInt, scryptSync } = require('crypto');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-
-const reservationCodeLock = 'cinemark_reservation_code';
-
-function hashCustomerPassword(password) {
-  const salt = randomBytes(16).toString('hex');
-  const hash = scryptSync(password, salt, 64).toString('hex');
-  return `scrypt$${salt}$${hash}`;
-}
 
 const db = mysql.createPool({
   host: process.env.DB_HOST,
@@ -142,184 +133,100 @@ app.get('/assentos/sala/:id', (req, res) => {
     res.json(results);
   });
 });
-app.post('/reservar', async (req, res) => {
-  const {
-    nome,
-    email,
-    telefone,
-    senha,
-    meio_pagamento,
-    cartao_final,
-    sessao_id,
-    sala_id,
-    assento_ids,
-  } = req.body;
 
-  if (
-    typeof nome !== 'string' || nome.trim().length < 3 ||
-    typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) ||
-    typeof telefone !== 'string' || telefone.replace(/\D/g, '').length < 10 ||
-    typeof senha !== 'string' || senha.length < 8 || senha.length > 128 ||
-    !['cartão', 'pix'].includes(meio_pagamento) ||
-    !sessao_id || !sala_id ||
-    !Array.isArray(assento_ids) || assento_ids.length === 0
-  ) {
-    return res.status(400).json({ error: 'Confira seus dados, informe uma senha de 8 a 128 caracteres e selecione ao menos um assento.' });
+app.post('/reservar', (req, res) => {
+  const { nome, email, telefone, meio_pagamento, sessao_id, sala_id, assento_ids } = req.body;
+
+  if (!nome || !email || !telefone || !meio_pagamento || !sessao_id || !sala_id || !Array.isArray(assento_ids) || assento_ids.length === 0){
+    return res.status(400).json({ error: 'Preencha todos os campos e selecione pelo menos um assento.' });
   }
+  db.getConnection((err, connection) => {
+    if (err) return res.status(500).json({ error: 'Erro interno ao conectar ao banco de dados.' });
 
-  if (meio_pagamento === 'cartão' && !/^\d{4}$/.test(cartao_final || '')) {
-    return res.status(400).json({ error: 'Dados de cartão inválidos. Informe o número do cartão novamente.' });
-  }
-
-  const dadosPagamento = meio_pagamento === 'cartão'
-    ? `Cartão final ****${cartao_final}`
-    : 'Pix';
-  const emailNormalizado = email.trim().toLowerCase();
-  const nomeNormalizado = nome.trim();
-  const senhaHash = hashCustomerPassword(senha);
-  let connection;
-  let transactionStarted = false;
-  let lockAcquired = false;
-
-  try {
-    connection = await db.promise().getConnection();
-
-    const [lockRows] = await connection.query(
-      'SELECT GET_LOCK(?, 10) AS adquirido',
-      [reservationCodeLock]
-    );
-    if (Number(lockRows[0]?.adquirido) !== 1) {
-      return res.status(503).json({ error: 'Não foi possível iniciar a reserva. Tente novamente.' });
-    }
-    lockAcquired = true;
-
-    await connection.beginTransaction();
-    transactionStarted = true;
-
-    const [clienteRows] = await connection.execute(
-      'SELECT id_cliente FROM registro_clientes WHERE LOWER(email) = ? LIMIT 1',
-      [emailNormalizado]
-    );
-    const [assentosOcupados] = await connection.query(
-      'SELECT assento_id FROM ingressos WHERE sessao_id = ? AND assento_id IN (?)',
-      [sessao_id, assento_ids]
-    );
-    if (assentosOcupados.length > 0) {
-      await connection.rollback();
-      transactionStarted = false;
-      return res.status(409).json({ error: 'Um ou mais assentos já estão ocupados. Atualize a página e escolha outros assentos.' });
-    }
-
-    const [codigosRows] = await connection.query(`
-      SELECT codigo_s AS codigo FROM registro_clientes WHERE codigo_s LIKE 'CINE%'
-      UNION
-      SELECT pedido AS codigo FROM registro_clientes WHERE pedido LIKE 'CINE%'
-    `);
-    const codigosUsados = new Set(codigosRows.map((row) => row.codigo));
-    const inicio = randomInt(0, 9000);
-    let codigoPedido;
-    for (let offset = 0; offset < 9000; offset += 1) {
-      const candidato = `CINE${1000 + ((inicio + offset) % 9000)}`;
-      if (!codigosUsados.has(candidato)) {
-        codigoPedido = candidato;
-        break;
+    connection.beginTransaction((txErr) => {
+      if (txErr) {
+        connection.release();
+        return res.status(500).json({ error: 'Erro interno ao iniciar transação.' });
       }
-    }
-    if (!codigoPedido) {
-      await connection.rollback();
-      transactionStarted = false;
-      return res.status(409).json({ error: 'Não há códigos de pedido disponíveis. Entre em contato com o atendimento.' });
-    }
 
-    const dataCompra = new Date();
-    let clienteId;
-    if (clienteRows.length > 0) {
-      clienteId = clienteRows[0].id_cliente;
-      await connection.execute(
-        `UPDATE registro_clientes
-         SET nome = ?, email = ?, senha = ?, meio_pagamento = ?, dados_pagamento = ?,
-             codigo_s = ?, data_compra = ?, pedido = ?
-         WHERE id_cliente = ?`,
-        [nomeNormalizado, emailNormalizado, senhaHash, meio_pagamento, dadosPagamento, codigoPedido, dataCompra, codigoPedido, clienteId]
-      );
-    } else {
-      const [clienteResult] = await connection.execute(
-        `INSERT INTO registro_clientes
-         (nome, email, senha, meio_pagamento, dados_pagamento, codigo_s, data_compra, pedido)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [nomeNormalizado, emailNormalizado, senhaHash, meio_pagamento, dadosPagamento, codigoPedido, dataCompra, codigoPedido]
-      );
-      clienteId = clienteResult.insertId;
-    }
-
-    const [clienteGravadoRows] = await connection.execute(
-      `SELECT nome, email, senha, meio_pagamento, dados_pagamento, codigo_s, data_compra, pedido
-       FROM registro_clientes WHERE id_cliente = ?`,
-      [clienteId]
-    );
-    const clienteGravado = clienteGravadoRows[0];
-    if (
-      !clienteGravado ||
-      clienteGravado.nome !== nomeNormalizado ||
-      clienteGravado.email.toLowerCase() !== emailNormalizado ||
-      clienteGravado.senha !== senhaHash ||
-      clienteGravado.meio_pagamento !== meio_pagamento ||
-      clienteGravado.dados_pagamento !== dadosPagamento ||
-      clienteGravado.codigo_s !== codigoPedido ||
-      clienteGravado.pedido !== codigoPedido ||
-      !clienteGravado.data_compra
-    ) {
-      throw new Error('A conferência das colunas em registro_clientes falhou.');
-    }
-
-    const ingressosValues = assento_ids.map((assentoId) => [
-      sessao_id,
-      assentoId,
-      clienteId,
-      dataCompra,
-      'Aguardando aprovação',
-      clienteId,
-    ]);
-    await connection.query(
-      'INSERT INTO ingressos (sessao_id, assento_id, usuario_id, data_compra, status, id_cliente) VALUES ?',
-      [ingressosValues]
-    );
-
-    await connection.commit();
-    transactionStarted = false;
-    return res.json({
-      message: 'Reserva realizada com sucesso!',
-      clienteId,
-      assentos: assento_ids,
-      codigo_pedido: codigoPedido,
-      pedido: codigoPedido,
-      meio_pagamento,
-    });
-  } catch (error) {
-    console.error('Erro ao gravar reserva no banco:', error);
-    if (connection && transactionStarted) {
-      try {
-        await connection.rollback();
-      } catch (rollbackError) {
-        console.error('Erro ao desfazer transação da reserva:', rollbackError);
-      }
-    }
-    return res.status(500).json({
-      error: 'Não foi possível gravar todos os dados da reserva no banco.',
-      details: process.env.NODE_ENV === 'production' ? undefined : error.message,
-    });
-  } finally {
-    if (connection) {
-      if (lockAcquired) {
-        try {
-          await connection.query('SELECT RELEASE_LOCK(?)', [reservationCodeLock]);
-        } catch (releaseError) {
-          console.error('Erro ao liberar bloqueio do código do pedido:', releaseError);
+      const findCliente = 'SELECT id_cliente FROM registro_clientes WHERE email = ? LIMIT 1';
+      connection.query(findCliente, [email], (findErr, findResult) => {
+        if (findErr) {
+          return connection.rollback(() => {
+            connection.release();
+            res.status(500).json({ error: 'Erro ao buscar cliente.' });
+          });
         }
-      }
-      connection.release();
-    }
-  }
+
+        const insertIngressos = (clienteId) => {
+          const checkQuery = `
+            SELECT assento_id
+            FROM ingressos
+            WHERE sessao_id = ?
+              AND assento_id IN (?);
+          `;
+
+          connection.query(checkQuery, [sessao_id, assento_ids], (checkErr, occupiedSeats) => {
+            if (checkErr) {
+              return connection.rollback(() => {
+                connection.release();
+                res.status(500).json({ error: 'Erro ao verificar disponibilidade dos assentos.' });
+              });
+            }
+
+            if (occupiedSeats.length > 0) {
+              return connection.rollback(() => {
+                connection.release();
+                res.status(409).json({ error: 'Um ou mais assentos já estão ocupados. Atualize a página e escolha outros assentos.' });
+              });
+            }
+
+            const now = new Date();
+            const ingressosValues = assento_ids.map((assentoId) => [sessao_id, assentoId, clienteId, now, 'Aguardando aprovação', clienteId]);
+            const insertQuery = 'INSERT INTO ingressos (sessao_id, assento_id, usuario_id, data_compra, status, id_cliente) VALUES ?';
+
+            connection.query(insertQuery, [ingressosValues], (ingressoErr) => {
+              if (ingressoErr) {
+                return connection.rollback(() => {
+                  connection.release();
+                  res.status(500).json({ error: 'Erro ao gravar ingressos.' });
+                });
+              }
+
+              connection.commit((commitErr) => {
+                if (commitErr) {
+                  return connection.rollback(() => {
+                    connection.release();
+                    res.status(500).json({ error: 'Erro ao confirmar reserva.' });
+                  });
+                }
+
+                connection.release();
+                res.json({ message: 'Reserva realizada com sucesso!', clienteId, assentos: assento_ids });
+              });
+            });
+          });
+        };
+
+        if (findResult.length > 0) {
+          insertIngressos(findResult[0].id_cliente);
+        } else {
+          const codigoS = 'RSV' + Math.random().toString(36).substring(2, 8).toUpperCase();
+          const insertCliente = 'INSERT INTO registro_clientes (nome, email, senha, meio_pagamento, dados_pagamento, codigo_s) VALUES (?, ?, ?, ?, ?, ?)';
+          connection.query(insertCliente, [nome, email, 'reserva', 'reserva', telefone || '-', codigoS], (clienteErr, clienteResult) => {
+            if (clienteErr) {
+              return connection.rollback(() => {
+                connection.release();
+                res.status(500).json({ error: 'Erro ao gravar cliente.' });
+              });
+            }
+
+            insertIngressos(clienteResult.insertId);
+          });
+        }
+      });
+    });
+  });
 });
 app.get('/meus-pedidos', (req, res) => {
   const { email } = req.query;
@@ -331,27 +238,28 @@ app.get('/meus-pedidos', (req, res) => {
   // Certifique-se de que a view/tabela faz o JOIN usando o id_cliente correto
   const queryPedidos = `
     SELECT
-      i.id AS ingresso_id,
-      f.titulo AS filme_titulo,
-      f.capa_url AS imagem,
-      f.trailer_url AS trailer,
-      f.categoria AS categoria,
-      f.estreia AS data_filme,
-      c.id_cliente AS cod,
-      c.nome AS nome,
-      i.data_compra AS data_compra,
-      a.sala_id AS sala,
-      a.fileira AS fileira,
-      a.id AS poltrona_id,
-      i.status AS status_pagamento
-    FROM ingressos i
-    JOIN sessoes s ON i.sessao_id = s.id
-    JOIN filmes f ON s.filme_id = f.id
-    JOIN assentos a ON i.assento_id = a.id
-    JOIN registro_clientes c ON i.id_cliente = c.id_cliente
-    WHERE c.email = ?
-    ORDER BY i.data_compra DESC;
+i.id AS ingresso_id,
+    f.titulo AS filme_titulo,
+    f.capa_url AS imagem,
+    f.trailer_url AS trailer,
+    f.categoria AS categoria,
+    f.estreia AS data_filme,
+    c.id_cliente AS cod,
+    c.nome AS nome,
+    i.data_compra AS data_compra,
+    a.sala_id AS sala,
+    a.fileira AS fileira,
+    a.id AS poltrona_id,
+    i.status AS status_pagamento
+FROM ingressos i
+JOIN sessoes s ON i.sessao_id = s.id
+JOIN filmes f ON s.filme_id = f.id
+JOIN assentos a ON i.assento_id = a.id
+JOIN registro_clientes c ON i.id_cliente = c.id_cliente
+WHERE c.email = ?
+ORDER BY i.data_compra DESC;
   `;
+
   db.query(queryPedidos, [email], (err, results) => {
     if (err) {
       console.error("Erro no MySQL:", err);
@@ -373,3 +281,4 @@ const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log(`Servidor rodando em http://localhost:${port}`);
 });
+

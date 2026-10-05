@@ -1,7 +1,7 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import api from '../services/api';
-import { Armchair, CreditCard } from 'lucide-react';
+import { Armchair } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { FaQrcode } from 'react-icons/fa';
 
@@ -18,7 +18,6 @@ export default function MapaAssentos() {
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [telefone, setTelefone] = useState('');
-  const [senha, setSenha] = useState('');
   const [meioPagamento, setMeioPagamento] = useState('cartão');
   const [mensagem, setMensagem] = useState('');
   const [erro, setErro] = useState('');
@@ -91,7 +90,7 @@ const validarCartao = (numero) => {
 
   if (visa.test(apenasNumeros)) return 'Visa';
   if (master.test(apenasNumeros)) return 'Mastercard';
-  if (amex.test(apenasNumeros)) return 'American Express';
+  if (amec.test(apenasNumeros)) return 'American Express';
   
   return 'Outra';
 };
@@ -113,8 +112,8 @@ const validarValidade = (validade) => {
   setErro('');
 
   // 1. Validação Geral de campos obrigatórios
-  if (!nome || !email || !telefone || !senha || selectedSeats.length === 0) {
-    setErro('Preencha seus dados, crie uma senha e selecione pelo menos um assento.');
+  if (!nome || !email || !telefone || selectedSeats.length === 0) {
+    setErro('Preencha nome, email, telefone e selecione pelo menos um assento.');
     return;
   }
 
@@ -123,7 +122,6 @@ const validarValidade = (validade) => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) return setErro("Email inválido.");
   if (telefone.replace(/\D/g, '').length < 10) return setErro("Telefone inválido.");
-  if (senha.length < 8 || senha.length > 128) return setErro('A senha deve ter entre 8 e 128 caracteres.');
 
   // 3. Validação Específica de Cartão
   if (meioPagamento === 'cartão') {
@@ -140,7 +138,7 @@ const validarValidade = (validade) => {
       return setErro("O nome no cartão deve ser igual ao nome do titular.");
     }
     if (!validarValidade(cartaoData)) return setErro("Cartão vencido ou vencimento inválido.");
-    if (validarCartao(cartaoNumero) === 'Outra') return setErro("Bandeira não suportada ou número inválido.");
+    if (validarCartao(cartaoNumero) === 'Desconhecida') return setErro("Bandeira não suportada ou número inválido.");
   }
 
   if (!sessao) {
@@ -155,26 +153,16 @@ const validarValidade = (validade) => {
       nome,
       email,
       telefone,
-      senha,
       meio_pagamento: meioPagamento,
-      cartao_final: meioPagamento === 'cartão'
-        ? cartaoNumero.replace(/\D/g, '').slice(-4)
-        : null,
+      dados_pagamento: meioPagamento === 'cartão' ? cartaoNumero : 'PIX_PAGO',
+      codigo_s: meioPagamento === 'cartão' ? cartaoCvc : null, 
       sessao_id: sessao.sessao_id,
-      sala_id: sessao.sala_id,
+      sala_id: sessao.sala_id, // Certifique-se que essa variável existe
       assento_ids: selectedSeats,
     });
 
-    if (
-      !/^CINE\d{4}$/.test(response.data?.codigo_pedido || '') ||
-      response.data?.pedido !== response.data?.codigo_pedido
-    ) {
-      setErro('O servidor não confirmou a gravação completa dos dados no banco. Atualize a API antes de aceitar a reserva.');
-      return;
-    }
-
     // Limpeza após sucesso
-    setNome(''); setEmail(''); setTelefone(''); setSenha('');
+    setNome(''); setEmail(''); setTelefone('');
     setCartaoNumero(''); setCartaoData(''); setCartaoCvc(''); setNomeNoCartao('');
     setMeioPagamento('cartão'); setSelectedSeats([]);
 
@@ -218,7 +206,6 @@ const validarValidade = (validade) => {
           </div>
         </div>
 
-        {sessaoError && <div className="alert alert-danger">{sessaoError}</div>}
         {erro && <div className="alert alert-danger">{erro}</div>}
         {mensagem && <div className="alert alert-success">{mensagem}</div>}
 
@@ -290,122 +277,55 @@ const validarValidade = (validade) => {
     <input type="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="(00) 00000-0000" />
   </div>
 
+  {/* Seleção de Pagamento */}
   <div className="field-group">
-    <label htmlFor="customer-password">Senha</label>
-    <input
-      id="customer-password"
-      type="password"
-      autoComplete="new-password"
-      minLength={8}
-      maxLength={128}
-      value={senha}
-      onChange={(e) => setSenha(e.target.value)}
-      placeholder="Crie uma senha com pelo menos 8 caracteres"
-      required
-    />
+    <label>Meio de Pagamento</label>
+    <select value={meioPagamento} onChange={(e) => setMeioPagamento(e.target.value)} className="form-select">
+      <option value="cartão">Cartão</option>
+      <option value="pix">Pix</option>
+    </select>
   </div>
-
-  <fieldset className="payment-choice">
-    <legend>Como deseja pagar?</legend>
-    <div className="payment-options" role="radiogroup" aria-label="Meio de pagamento">
-      <button
-        className={`payment-option ${meioPagamento === 'cartão' ? 'is-selected' : ''}`}
-        type="button"
-        role="radio"
-        aria-checked={meioPagamento === 'cartão'}
-        onClick={() => setMeioPagamento('cartão')}
-      >
-        <CreditCard size={22} aria-hidden="true" />
-        <span className="payment-option-copy">
-          <strong>Cartão</strong>
-          <small>Crédito ou débito</small>
-        </span>
-        <span className="payment-option-check" aria-hidden="true">✓</span>
-      </button>
-      <button
-        className={`payment-option ${meioPagamento === 'pix' ? 'is-selected' : ''}`}
-        type="button"
-        role="radio"
-        aria-checked={meioPagamento === 'pix'}
-        onClick={() => setMeioPagamento('pix')}
-      >
-        <FaQrcode size={22} aria-hidden="true" />
-        <span className="payment-option-copy">
-          <strong>Pix</strong>
-          <small>Rápido e prático</small>
-        </span>
-        <span className="payment-option-check" aria-hidden="true">✓</span>
-      </button>
-    </div>
-  </fieldset>
 
   {/* Renderização Condicional - MANTENHA ISSO DENTRO DO FORM */}
   <div className="payment-container">
     {meioPagamento === 'pix' ? (
       <div className="payment-box pix-box">
-        <div className="payment-box-title">
-          <span className="payment-icon pix-icon"><FaQrcode aria-hidden="true" /></span>
-          <div>
-            <h3>Pagamento via Pix</h3>
-            <p>Copie o código abaixo para continuar.</p>
-          </div>
-        </div>
-        <div className="pix-code">
-          <input aria-label="Código Pix" readOnly value="PIX1234567890ABCDEF" />
-          <button type="button" onClick={() => copiarTexto("PIX1234567890ABCDEF")}>Copiar código</button>
-        </div>
-      </div>
+        <h3>Pagamento via Pix</h3>
+        <div style={{ fontSize: '60px', color: '#87CEEB', margin: '10px 0' }}>
+      <FaQrcode />
+    </div>
+    <div className="pix-code">
+      <input readOnly value="PIX1234567890ABCDEF" />
+      <button type="button" onClick={() => copiarTexto("PIX1234567890ABCDEF")}>Copiar</button>
+    </div>
+  </div>
         
     ) : (
       <div className="payment-box card-box">
-        <div className="payment-box-title">
-          <span className="payment-icon card-icon"><CreditCard aria-hidden="true" /></span>
-          <div>
-            <h3>Dados do cartão</h3>
-            <p>Preencha os dados impressos no seu cartão.</p>
-          </div>
+        <h3>Dados do Cartão</h3>
+        <input 
+    placeholder="Nome impresso no cartão" 
+    value={nomeNoCartao} 
+    onChange={(e) => setNomeNoCartao(e.target.value.toUpperCase())} // Sempre maiúsculo
+  />
+        <input 
+      placeholder="Número do cartão" 
+      value={cartaoNumero} 
+      onChange={(e) => setCartaoNumero(e.target.value)} 
+    />
+        <div style={{ display: 'flex', gap: '10px' }}>
+         <input 
+        placeholder="MM/AA" 
+        value={cartaoData} 
+        onChange={(e) => setCartaoData(e.target.value)} 
+      />
+      <input 
+        placeholder="CVC" 
+        value={cartaoCvc} 
+        onChange={(e) => setCartaoCvc(e.target.value)} 
+      />
         </div>
-        <div className="card-fields">
-          <label className="payment-field card-name-field">
-            <span>Nome no cartão</span>
-            <input
-              autoComplete="cc-name"
-              placeholder="Nome impresso no cartão"
-              value={nomeNoCartao}
-              onChange={(e) => setNomeNoCartao(e.target.value.toUpperCase())}
-            />
-          </label>
-          <label className="payment-field card-number-field">
-            <span>Número do cartão</span>
-            <input
-              autoComplete="cc-number"
-              inputMode="numeric"
-              placeholder="0000 0000 0000 0000"
-              value={cartaoNumero}
-              onChange={(e) => setCartaoNumero(e.target.value)}
-            />
-          </label>
-          <label className="payment-field">
-            <span>Validade</span>
-            <input
-              autoComplete="cc-exp"
-              placeholder="MM/AA"
-              value={cartaoData}
-              onChange={(e) => setCartaoData(e.target.value)}
-            />
-          </label>
-          <label className="payment-field">
-            <span>Código de segurança</span>
-            <input
-              autoComplete="cc-csc"
-              inputMode="numeric"
-              placeholder="CVC"
-              value={cartaoCvc}
-              onChange={(e) => setCartaoCvc(e.target.value)}
-            />
-          </label>
-        </div>
-        <p className="secure-info">🔒 Seus dados são usados apenas para esta reserva.</p>
+        <p className="secure-info">🔒 Site seguro - Seus dados estão protegidos.</p>
       </div>
     )}
   </div>
