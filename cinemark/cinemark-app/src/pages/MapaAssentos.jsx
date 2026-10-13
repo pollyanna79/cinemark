@@ -1,12 +1,20 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../services/api';
-import { Armchair, CreditCard } from 'lucide-react';
+import { Armchair, CalendarDays, CreditCard } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { FaQrcode } from 'react-icons/fa';
 
 const CODIGO_PIX = 'PIX1234567890ABCDEF';
 const PRECO_INGRESSO = 20;
+const HORARIOS_AGENDAMENTO = ['10:00', '12:00', '14:00', '16:00', '18:00', '20:00'];
+
+function adicionarDias(data, dias) {
+  if (!data) return '';
+  const dataAjustada = new Date(`${data}T00:00:00Z`);
+  dataAjustada.setUTCDate(dataAjustada.getUTCDate() + dias);
+  return dataAjustada.toISOString().slice(0, 10);
+}
 
 
 export default function MapaAssentos() {
@@ -16,10 +24,13 @@ export default function MapaAssentos() {
   const [cartaoNumero, setCartaoNumero] = useState('');
   const [cartaoData, setCartaoData] = useState('');
   const [cartaoCvc, setCartaoCvc] = useState('');
+  const dataAgendamentoRef = useRef(null);
   const [assentos, setAssentos] = useState([]);
   const [selectedSeats, setSelectedSeats] = useState([]);
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
+  const [dataAgendamento, setDataAgendamento] = useState('');
+  const [horarioAgendamento, setHorarioAgendamento] = useState('');
   const [meioPagamento, setMeioPagamento] = useState('cartão');
   const [mensagem, setMensagem] = useState('');
   const [erro, setErro] = useState('');
@@ -29,6 +40,9 @@ export default function MapaAssentos() {
   const [salaNome, setSalaNome] = useState('');
   const [filmeTitulo, setFilmeTitulo] = useState('');
   const [sessaoError, setSessaoError] = useState('');
+  const dataEstreia = sessao?.data_estreia?.slice(0, 10) || '';
+  const dataMinimaAgendamento = adicionarDias(dataEstreia, 1);
+  const dataMaximaAgendamento = adicionarDias(dataEstreia, 31);
 
 
   const copiarTexto = (texto) => {
@@ -114,8 +128,12 @@ const validarValidade = (validade) => {
   setErro('');
 
   // 1. Validação Geral de campos obrigatórios
-  if (!nome || !email || selectedSeats.length === 0) {
-    setErro('Preencha nome, email e selecione pelo menos um assento.');
+  if (!nome || !email || !dataAgendamento || !horarioAgendamento || selectedSeats.length === 0) {
+    setErro('Preencha nome, email, escolha o dia e o horário do agendamento e selecione pelo menos um assento.');
+    return;
+  }
+  if (!dataEstreia) {
+    setErro('Não foi possível confirmar a data de estreia deste filme.');
     return;
   }
 
@@ -123,6 +141,13 @@ const validarValidade = (validade) => {
   if (nome.length < 3) return setErro("Digite seu nome completo.");
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) return setErro("Email inválido.");
+  if (
+    dataAgendamento < dataMinimaAgendamento ||
+    dataAgendamento > dataMaximaAgendamento ||
+    !HORARIOS_AGENDAMENTO.includes(horarioAgendamento)
+  ) {
+    return setErro('Escolha uma data válida após a estreia e um horário disponível entre 10h e 20h.');
+  }
 
   // 3. Validação Específica de Cartão
   if (meioPagamento === 'cartão') {
@@ -157,13 +182,14 @@ const validarValidade = (validade) => {
       dados_pagamento: meioPagamento === 'cartão'
         ? cartaoNumero.replace(/\D/g, '').slice(-4)
         : CODIGO_PIX,
+      dia_agendamento: `${dataAgendamento}T${horarioAgendamento}:00`,
       sessao_id: sessao.sessao_id,
       sala_id: sessao.sala_id, // Certifique-se que essa variável existe
       assento_ids: selectedSeats,
     });
 
     // Limpeza após sucesso
-    setNome(''); setEmail('');
+    setNome(''); setEmail(''); setDataAgendamento(''); setHorarioAgendamento('');
     setCartaoNumero(''); setCartaoData(''); setCartaoCvc(''); setNomeNoCartao('');
     setMeioPagamento('cartão'); setSelectedSeats([]);
 
@@ -279,7 +305,72 @@ const validarValidade = (validade) => {
     <label>Email</label>
     <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" />
   </div>
-  
+
+  <fieldset className="schedule-panel">
+    <legend>Escolha quando quer assistir</legend>
+    {dataEstreia ? (
+      <>
+        <p>
+          Agendamentos disponíveis de {new Date(`${dataMinimaAgendamento}T00:00:00`).toLocaleDateString('pt-BR')}
+          {' '}a {new Date(`${dataMaximaAgendamento}T00:00:00`).toLocaleDateString('pt-BR')}.
+          Horários: das 10h às 20h, de duas em duas horas.
+        </p>
+        <div className="schedule-fields">
+          <label className="field-group">
+            <span>Dia</span>
+            <span className="schedule-date-control">
+              <input
+                ref={dataAgendamentoRef}
+                className="schedule-date-input"
+                type="date"
+                value={dataAgendamento}
+                min={dataMinimaAgendamento}
+                max={dataMaximaAgendamento}
+                onChange={(event) => setDataAgendamento(event.target.value)}
+                disabled={!dataEstreia}
+                required
+              />
+              <button
+                className="schedule-calendar-button"
+                type="button"
+                aria-label="Abrir calendário"
+                title="Abrir calendário"
+                disabled={!dataEstreia}
+                onClick={() => {
+                  const campoData = dataAgendamentoRef.current;
+                  if (typeof campoData?.showPicker === 'function') {
+                    campoData.showPicker();
+                  } else {
+                    campoData?.focus();
+                    campoData?.click();
+                  }
+                }}
+              >
+                <CalendarDays size={20} aria-hidden="true" />
+              </button>
+            </span>
+          </label>
+          <label className="field-group">
+            <span>Horário</span>
+            <select
+              value={horarioAgendamento}
+              onChange={(event) => setHorarioAgendamento(event.target.value)}
+              disabled={!dataEstreia}
+              required
+            >
+              <option value="">Selecione um horário</option>
+              {HORARIOS_AGENDAMENTO.map((horario) => (
+                <option key={horario} value={horario}>{horario}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </>
+    ) : (
+      <p>A data de estreia não está disponível para este filme.</p>
+    )}
+  </fieldset>
+
   <fieldset className="payment-choice">
     <legend>Meio de pagamento</legend>
     <div className="payment-options" role="radiogroup" aria-label="Meio de pagamento">

@@ -20,9 +20,11 @@ function formatCurrency(value) {
   }).format(Number(value) || 0);
 }
 
-function formatDate(value) {
-  if (!value) return '—';
-  return new Date(value).toLocaleDateString('pt-BR');
+function formatAppointment(value) {
+  if (!value) return 'Agendamento não informado';
+  const match = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/.exec(value);
+  if (!match) return value;
+  return `${match[3]}/${match[2]}/${match[1]} às ${match[4]}:${match[5]}`;
 }
 
 export default function MeusPedidos() {
@@ -52,7 +54,7 @@ export default function MeusPedidos() {
   };
 
   const pedidosAgrupados = Object.values(pedidos.reduce((grupos, ingresso) => {
-    const chave = `${ingresso.pedido || ingresso.cod}-${ingresso.data_compra}`;
+    const chave = `${ingresso.pedido || ingresso.cod}-${ingresso.dia_agendamento}`;
     if (!grupos[chave]) {
       grupos[chave] = { ...ingresso, assentos: [] };
     }
@@ -93,7 +95,7 @@ export default function MeusPedidos() {
       {pedidosAgrupados.length > 0 ? (
         <section className="orders-list" aria-label="Pedidos encontrados">
           {pedidosAgrupados.map((pedido) => (
-            <article className="order-card" key={`${pedido.pedido}-${pedido.data_compra}`}>
+            <article className="order-card" key={`${pedido.pedido}-${pedido.dia_agendamento}`}>
               <div className="order-card-header">
                 <div>
                   <span className="orders-eyebrow">SEU PEDIDO</span>
@@ -115,8 +117,8 @@ export default function MeusPedidos() {
                   <span>{formatDateTime(pedido.data_compra)}</span>
                 </div>
                 <div className="order-item">
-                  <strong>Dia do filme</strong>
-                  <span>{formatDate(pedido.data_filme)}</span>
+                  <strong>Agendamento para o dia:</strong>
+                  <span>{formatAppointment(pedido.dia_agendamento)}</span>
                 </div>
               </div>
               <div className="order-seats">

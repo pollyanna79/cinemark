@@ -467,6 +467,91 @@ input {
   box-shadow: 0 0 0 2px rgba(225,29,72,0.14);
 }
 
+.schedule-panel {
+  display: grid;
+  gap: 0.85rem;
+  margin: 0;
+  padding: 1.2rem;
+  border: 1px solid rgba(148,163,184,0.2);
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(30,41,59,0.8), rgba(15,23,42,0.85));
+}
+
+.schedule-panel legend {
+  padding: 0 0.5rem;
+  color: #fda4af;
+  font-weight: 700;
+}
+
+.schedule-panel p {
+  margin: 0;
+  color: #cbd5e1;
+  line-height: 1.5;
+}
+
+.schedule-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 1rem;
+}
+
+.schedule-fields select {
+  width: 100%;
+  background: rgba(15,23,42,0.9);
+  border: 1px solid rgba(148,163,184,0.18);
+  border-radius: 12px;
+  color: var(--text);
+  padding: 0.95rem 1rem;
+}
+
+.schedule-date-control {
+  position: relative;
+  display: flex;
+}
+
+.schedule-fields .schedule-date-input {
+  width: 100%;
+  min-height: 3.25rem;
+  padding-right: 3.25rem;
+  color-scheme: dark;
+  cursor: pointer;
+}
+
+.schedule-date-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.9;
+}
+
+.schedule-calendar-button {
+  position: absolute;
+  inset-block: 0;
+  right: 0.35rem;
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #fda4af;
+  cursor: pointer;
+}
+
+.schedule-calendar-button:hover:not(:disabled) {
+  background: rgba(225,29,72,0.15);
+  color: #fff;
+}
+
+.schedule-calendar-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.schedule-fields input:disabled,
+.schedule-fields select:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .meus-pedidos-form,
 .reservation-form {
   display: flex;

@@ -98,6 +98,7 @@ app.get('/filmes/:id/sessao', (req, res) => {
       s.id AS sessao_id,
       s.filme_id,
       f.titulo AS filme_titulo,
+      DATE_FORMAT(f.estreia, '%Y-%m-%d') AS data_estreia,
       s.sala_id,
       sa.nome AS sala_nome,
       s.dia,
@@ -142,9 +143,18 @@ app.get('/assentos/sala/:id', (req, res) => {
 });
 
 app.post('/reservar', (req, res) => {
-  const { nome, email, meio_pagamento, dados_pagamento, sessao_id, sala_id, assento_ids } = req.body;
+  const {
+    nome,
+    email,
+    meio_pagamento,
+    dados_pagamento,
+    dia_agendamento,
+    sessao_id,
+    sala_id,
+    assento_ids
+  } = req.body;
 
-  if (!nome || !email || !meio_pagamento || !sessao_id || !sala_id || !Array.isArray(assento_ids) || assento_ids.length === 0){
+  if (!nome || !email || !meio_pagamento || !dia_agendamento || !sessao_id || !sala_id || !Array.isArray(assento_ids) || assento_ids.length === 0){
     return res.status(400).json({ error: 'Preencha todos os campos e selecione pelo menos um assento.' });
   }
 
@@ -171,7 +181,52 @@ app.post('/reservar', (req, res) => {
     return res.status(400).json({ error: 'Informe o código Pix ou somente os quatro últimos dígitos do cartão.' });
   }
 
-  db.getConnection((err, connection) => {
+  const agendamentoMatch = /^(\d{4}-\d{2}-\d{2})T(10|12|14|16|18|20):00$/.exec(dia_agendamento);
+  if (!agendamentoMatch) {
+    return res.status(400).json({ error: 'Selecione uma data e um horário disponíveis: 10h, 12h, 14h, 16h, 18h ou 20h.' });
+  }
+
+  const dataSelecionada = new Date(`${agendamentoMatch[1]}T00:00:00Z`);
+  if (Number.isNaN(dataSelecionada.getTime()) || dataSelecionada.toISOString().slice(0, 10) !== agendamentoMatch[1]) {
+    return res.status(400).json({ error: 'A data de agendamento não é válida.' });
+  }
+
+  db.query(
+    `SELECT DATE_FORMAT(f.estreia, '%Y-%m-%d') AS data_estreia, s.sala_id
+     FROM sessoes s
+     JOIN filmes f ON f.id = s.filme_id
+     WHERE s.id = ?`,
+    [sessao_id],
+    (scheduleErr, scheduleResults) => {
+      if (scheduleErr) {
+        console.error('Erro ao validar agendamento:', scheduleErr);
+        return res.status(500).json({ error: 'Erro ao validar a data do filme.' });
+      }
+
+      if (scheduleResults.length === 0 || Number(scheduleResults[0].sala_id) !== Number(sala_id)) {
+        return res.status(400).json({ error: 'Sessão inválida para este agendamento.' });
+      }
+
+      const dataEstreia = scheduleResults[0].data_estreia;
+      if (!dataEstreia) {
+        return res.status(400).json({ error: 'A data de estreia deste filme não está cadastrada.' });
+      }
+
+      const primeiroDia = new Date(`${dataEstreia}T00:00:00Z`);
+      const ultimoDia = new Date(`${dataEstreia}T00:00:00Z`);
+      primeiroDia.setUTCDate(primeiroDia.getUTCDate() + 1);
+      ultimoDia.setUTCDate(ultimoDia.getUTCDate() + 31);
+      const dataMinima = primeiroDia.toISOString().slice(0, 10);
+      const dataMaxima = ultimoDia.toISOString().slice(0, 10);
+
+      if (agendamentoMatch[1] < dataMinima || agendamentoMatch[1] > dataMaxima) {
+        return res.status(400).json({
+          error: `Escolha uma data entre ${dataMinima} e ${dataMaxima}, considerando a estreia do filme.`
+        });
+      }
+
+      const agendamentoParaBanco = `${agendamentoMatch[1]} ${agendamentoMatch[2]}:00:00`;
+      db.getConnection((err, connection) => {
     if (err) return res.status(500).json({ error: 'Erro interno ao conectar ao banco de dados.' });
 
     connection.beginTransaction((txErr) => {
@@ -249,7 +304,7 @@ app.post('/reservar', (req, res) => {
           const clienteId = findResult[0].id_cliente;
           const updateCliente = `
             UPDATE registro_clientes 
-            SET nome = ?, email = ?, meio_pagamento = ?, dados_pagamento = ?, codigo_s = ?, pedido = ?
+            SET nome = ?, email = ?, meio_pagamento = ?, dados_pagamento = ?, codigo_s = ?, pedido = ?, dia_agendamento = ?
             WHERE id_cliente = ?
           `;
 
@@ -260,6 +315,7 @@ app.post('/reservar', (req, res) => {
             dadosPagamentoValor,
             '--',
             numeroPedido,
+            agendamentoParaBanco,
             clienteId
           ], (updateErr) => {
             if (updateErr) {
@@ -274,8 +330,8 @@ app.post('/reservar', (req, res) => {
         } else {
           const insertCliente = `
             INSERT INTO registro_clientes 
-            (nome, email, meio_pagamento, dados_pagamento, codigo_s, pedido)
-            VALUES (?, ?, ?, ?, ?, ?)
+            (nome, email, meio_pagamento, dados_pagamento, codigo_s, pedido, dia_agendamento)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
           `;
 
           connection.query(insertCliente, [
@@ -284,7 +340,8 @@ app.post('/reservar', (req, res) => {
             meioPagamentoEscolhido,
             dadosPagamentoValor,
             '--',
-            numeroPedido
+            numeroPedido,
+            agendamentoParaBanco
           ], (clienteErr, clienteResult) => {
             if (clienteErr) {
               return connection.rollback(() => {
@@ -298,7 +355,9 @@ app.post('/reservar', (req, res) => {
         }
       });
     });
-  });
+      });
+    }
+  );
 });
 app.get('/meus-pedidos', (req, res) => {
   const { email } = req.query;
@@ -319,6 +378,7 @@ i.id AS ingresso_id,
     c.id_cliente AS cod,
     c.nome AS nome,
     c.pedido AS pedido,
+    DATE_FORMAT(c.dia_agendamento, '%Y-%m-%d %H:%i') AS dia_agendamento,
     i.data_compra AS data_compra,
     (
       SELECT COUNT(*) * ${PRECO_INGRESSO}
