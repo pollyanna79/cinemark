@@ -43,6 +43,7 @@ export default function MapaAssentos() {
   const dataEstreia = sessao?.data_estreia?.slice(0, 10) || '';
   const dataMinimaAgendamento = adicionarDias(dataEstreia, 1);
   const dataMaximaAgendamento = adicionarDias(dataEstreia, 31);
+  const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
 
   const copiarTexto = (texto) => {
@@ -306,70 +307,72 @@ const validarValidade = (validade) => {
     <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" />
   </div>
 
-  <fieldset className="schedule-panel">
-    <legend>Escolha quando quer assistir</legend>
-    {dataEstreia ? (
-      <>
-        <p>
-          Agendamentos disponíveis de {new Date(`${dataMinimaAgendamento}T00:00:00`).toLocaleDateString('pt-BR')}
-          {' '}a {new Date(`${dataMaximaAgendamento}T00:00:00`).toLocaleDateString('pt-BR')}.
-          Horários: das 10h às 20h, de duas em duas horas.
-        </p>
-        <div className="schedule-fields">
-          <label className="field-group">
-            <span>Dia</span>
-            <span className="schedule-date-control">
-              <input
-                ref={dataAgendamentoRef}
-                className="schedule-date-input"
-                type="date"
-                value={dataAgendamento}
-                min={dataMinimaAgendamento}
-                max={dataMaximaAgendamento}
-                onChange={(event) => setDataAgendamento(event.target.value)}
+  {emailValido && (
+    <fieldset className="schedule-panel">
+      <legend>Escolha quando quer assistir</legend>
+      {dataEstreia ? (
+        <>
+          <p>
+            Agendamentos disponíveis de {new Date(`${dataMinimaAgendamento}T00:00:00`).toLocaleDateString('pt-BR')}
+            {' '}a {new Date(`${dataMaximaAgendamento}T00:00:00`).toLocaleDateString('pt-BR')}.
+            Horários: das 10h às 20h, de duas em duas horas.
+          </p>
+          <div className="schedule-fields">
+            <label className="field-group">
+              <span>Dia</span>
+              <span className="schedule-date-control">
+                <input
+                  ref={dataAgendamentoRef}
+                  className="schedule-date-input"
+                  type="date"
+                  value={dataAgendamento}
+                  min={dataMinimaAgendamento}
+                  max={dataMaximaAgendamento}
+                  onChange={(event) => setDataAgendamento(event.target.value)}
+                  disabled={!dataEstreia}
+                  required
+                />
+                <button
+                  className="schedule-calendar-button"
+                  type="button"
+                  aria-label="Abrir calendário"
+                  title="Abrir calendário"
+                  disabled={!dataEstreia}
+                  onClick={() => {
+                    const campoData = dataAgendamentoRef.current;
+                    if (typeof campoData?.showPicker === 'function') {
+                      campoData.showPicker();
+                    } else {
+                      campoData?.focus();
+                      campoData?.click();
+                    }
+                  }}
+                >
+                  <CalendarDays size={20} aria-hidden="true" />
+                </button>
+              </span>
+            </label>
+            <label className="field-group">
+              <span>Horário</span>
+              <select
+                value={horarioAgendamento}
+                onChange={(event) => setHorarioAgendamento(event.target.value)}
                 disabled={!dataEstreia}
                 required
-              />
-              <button
-                className="schedule-calendar-button"
-                type="button"
-                aria-label="Abrir calendário"
-                title="Abrir calendário"
-                disabled={!dataEstreia}
-                onClick={() => {
-                  const campoData = dataAgendamentoRef.current;
-                  if (typeof campoData?.showPicker === 'function') {
-                    campoData.showPicker();
-                  } else {
-                    campoData?.focus();
-                    campoData?.click();
-                  }
-                }}
               >
-                <CalendarDays size={20} aria-hidden="true" />
-              </button>
-            </span>
-          </label>
-          <label className="field-group">
-            <span>Horário</span>
-            <select
-              value={horarioAgendamento}
-              onChange={(event) => setHorarioAgendamento(event.target.value)}
-              disabled={!dataEstreia}
-              required
-            >
-              <option value="">Selecione um horário</option>
-              {HORARIOS_AGENDAMENTO.map((horario) => (
-                <option key={horario} value={horario}>{horario}</option>
-              ))}
-            </select>
-          </label>
-        </div>
-      </>
-    ) : (
-      <p>A data de estreia não está disponível para este filme.</p>
-    )}
-  </fieldset>
+                <option value="">Selecione um horário</option>
+                {HORARIOS_AGENDAMENTO.map((horario) => (
+                  <option key={horario} value={horario}>{horario}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </>
+      ) : (
+        <p>A data de estreia não está disponível para este filme.</p>
+      )}
+    </fieldset>
+  )}
 
   <fieldset className="payment-choice">
     <legend>Meio de pagamento</legend>
