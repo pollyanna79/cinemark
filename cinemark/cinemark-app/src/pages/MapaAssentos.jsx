@@ -128,8 +128,24 @@ const validarValidade = (validade) => {
   setErro('');
 
   // 1. Validação Geral de campos obrigatórios
-  if (!nome || !email || !dataAgendamento || !horarioAgendamento || selectedSeats.length === 0) {
-    setErro('Preencha nome, email, escolha o dia e o horário do agendamento e selecione pelo menos um assento.');
+  if (!nome.trim()) {
+    setErro('Informe seu nome.');
+    return;
+  }
+  if (!email.trim()) {
+    setErro('Informe seu email.');
+    return;
+  }
+  if (!dataAgendamento) {
+    setErro('Escolha o dia do agendamento.');
+    return;
+  }
+  if (!horarioAgendamento) {
+    setErro('Escolha o horário do agendamento.');
+    return;
+  }
+  if (selectedSeats.length === 0) {
+    setErro('Selecione pelo menos um assento no mapa antes de confirmar.');
     return;
   }
   if (!dataEstreia) {
@@ -138,9 +154,9 @@ const validarValidade = (validade) => {
   }
 
   // 2. Validação de Formatos
-  if (nome.length < 3) return setErro("Digite seu nome completo.");
+  if (nome.trim().length < 3) return setErro("Digite seu nome completo.");
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) return setErro("Email inválido.");
+  if (!emailRegex.test(email.trim())) return setErro("Email inválido.");
   if (
     dataAgendamento < dataMinimaAgendamento ||
     dataAgendamento > dataMaximaAgendamento ||
@@ -176,8 +192,8 @@ const validarValidade = (validade) => {
 
   try {
     const response = await api.post('/reservar', {
-      nome,
-      email,
+      nome: nome.trim(),
+      email: email.trim(),
       meio_pagamento: meioPagamento,
       dados_pagamento: meioPagamento === 'cartão'
         ? cartaoNumero.replace(/\D/g, '').slice(-4)
