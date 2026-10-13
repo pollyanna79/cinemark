@@ -181,7 +181,7 @@ app.post('/reservar', (req, res) => {
     return res.status(400).json({ error: 'Informe o código Pix ou somente os quatro últimos dígitos do cartão.' });
   }
 
-  const agendamentoMatch = /^(\d{4}-\d{2}-\d{2})T(10|12|14|16|18|20):00$/.exec(dia_agendamento);
+  const agendamentoMatch = /^(\d{4}-\d{2}-\d{2})T(10|12|14|16|18|20):00:00$/.exec(dia_agendamento);
   if (!agendamentoMatch) {
     return res.status(400).json({ error: 'Selecione uma data e um horário disponíveis: 10h, 12h, 14h, 16h, 18h ou 20h.' });
   }
