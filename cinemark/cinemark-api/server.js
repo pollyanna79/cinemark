@@ -267,7 +267,17 @@ app.post('/reservar', (req, res) => {
             }
 
             const now = new Date();
-            const ingressosValues = assento_ids.map((assentoId) => [sessao_id, assentoId, clienteId, now, 'Aguardando aprovação', clienteId]);
+            const statusPagamento = meioPagamentoEscolhido === 'pix'
+              ? 'Aprovado'
+              : 'Aguardando aprovação';
+            const ingressosValues = assento_ids.map((assentoId) => [
+              sessao_id,
+              assentoId,
+              clienteId,
+              now,
+              statusPagamento,
+              clienteId
+            ]);
             const insertQuery = 'INSERT INTO ingressos (sessao_id, assento_id, usuario_id, data_compra, status, id_cliente) VALUES ?';
 
             connection.query(insertQuery, [ingressosValues], (ingressoErr) => {

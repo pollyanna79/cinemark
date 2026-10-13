@@ -55,8 +55,8 @@ body {
 }
 
 #root {
-  width: 1126px;
-  max-width: 100%;
+  width: 100%;
+  max-width: 1200px;
   margin: 0 auto;
   text-align: center;
   border-inline: 1px solid var(--border);
@@ -74,7 +74,7 @@ h2 {
 }
 
 h1 {
-  font-size: 56px;
+  font-size: clamp(2rem, 6vw, 3.5rem);
   letter-spacing: -1.68px;
   margin: 32px 0;
   @media (max-width: 1024px) {
@@ -142,7 +142,8 @@ code {
 .footer-bottom-grid {
   display: flex;
   justify-content: center;
-  gap: 100px; /* Distância entre Contato e Siga-nos */
+  flex-wrap: wrap;
+  gap: clamp(2rem, 8vw, 6.25rem);
 }
 
 /* Garante que o ícone fique ao lado do texto */
@@ -197,4 +198,28 @@ code {
 }
 .titulo {
   color:red;
+}
+
+@media (max-width: 640px) {
+  .footer {
+    padding: 2rem 1rem;
+  }
+
+  .footer-bottom-grid {
+    align-items: flex-start;
+    gap: 1.5rem;
+  }
+
+  .footer-section {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .contact-item {
+    overflow-wrap: anywhere;
+  }
+
+  .contact-item svg {
+    flex: 0 0 auto;
+  }
 }

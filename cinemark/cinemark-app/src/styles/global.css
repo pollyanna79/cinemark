@@ -15,30 +15,34 @@ body {
   color: var(--text);
   font-family: 'Inter', sans-serif;
   margin: 0;
+  min-width: 320px;
+  overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
 }
 
 .container {
+  width: 100%;
   max-width: 1200px;
+  box-sizing: border-box;
   margin: 0 auto;
-  padding: 2rem 1rem;
+  padding: clamp(1.25rem, 4vw, 2rem) clamp(0.75rem, 3vw, 1.5rem);
 }
 
 .main-title {
   color:#fbbf24;
   text-align: center;
   margin-bottom: 2.5rem;
-  font-size: 2.5rem;
+  font-size: clamp(1.65rem, 5vw, 2.5rem);
   text-transform: uppercase;
-  letter-spacing: 2px;
+  letter-spacing: clamp(0.04em, 0.4vw, 2px);
+  overflow-wrap: anywhere;
 }
 
 /* Grid Responsivo */
 .grid-filmes {
   display: grid;
-  /* Garante que os cards se ajustem sozinhos ao tamanho da tela */
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 2.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: clamp(1rem, 3vw, 2.5rem);
 }
 
 /* Card de Filme */
@@ -64,7 +68,7 @@ body {
 /* Padronização das Imagens */
 .image-wrapper {
   width: 100%;
-  height: 320px; /* Altura fixa para todas as capas */
+  aspect-ratio: 3 / 4;
   overflow: hidden;
 }
 
@@ -161,7 +165,8 @@ input {
 /* Container do Cinema */
 .cinema-wrapper {
   background: #0f172a;
-  padding: 2rem;
+  min-width: 0;
+  padding: clamp(0.75rem, 3vw, 2rem);
   border-radius: 1rem;
   text-align: center;
 }
@@ -182,10 +187,11 @@ input {
 
 .screen-title {
   margin: 0;
-  font-size: 2rem;
+  font-size: clamp(1.2rem, 4vw, 2rem);
   color: #fb7185;
   text-transform: uppercase;
-  letter-spacing: 0.16em;
+  letter-spacing: clamp(0.04em, 1vw, 0.16em);
+  overflow-wrap: anywhere;
 }
 
 .screen-subtitle {
@@ -210,8 +216,12 @@ input {
   display: flex;
   flex-direction: column;
   gap: 15px;
+  width: 100%;
   max-width: 900px;
   margin: 0 auto;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
 }
 
 .row {
@@ -219,6 +229,8 @@ input {
   align-items: center;
   justify-content: center;
   gap: 10px;
+  width: 100%;
+  min-width: 740px;
 }
 
 .row-label {
@@ -337,6 +349,7 @@ input {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  min-width: 0;
 }
 
 .logo {
@@ -422,7 +435,8 @@ input {
 .reservation-panel {
   margin-top: 2rem;
   background: rgba(255,255,255,0.04);
-  padding: 1.8rem;
+  min-width: 0;
+  padding: clamp(1rem, 4vw, 1.8rem);
   border-radius: 18px;
   border: 1px solid rgba(148,163,184,0.12);
   text-align: left;
@@ -561,6 +575,8 @@ input {
 }
 
 .order-card {
+  min-width: 0;
+  overflow-wrap: anywhere;
   background: linear-gradient(145deg, rgba(30,41,59,0.96), rgba(15,23,42,0.96));
   border: 1px solid rgba(148,163,184,0.2);
   border-radius: 20px;
@@ -615,18 +631,18 @@ input {
 
 .order-details {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
+  gap: clamp(0.75rem, 2vw, 1rem);
   padding: 1rem 0;
 }
 
 .order-item {
   display: grid;
   gap: 0.35rem;
+  align-content: start;
 }
 
-.order-item strong,
-.order-seats > strong {
+.order-item strong {
   color: #94a3b8;
   font-size: 0.78rem;
   text-transform: uppercase;
@@ -642,7 +658,15 @@ input {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-  margin-top: 0.65rem;
+  align-items: flex-start;
+}
+
+.order-seats {
+  min-width: 0;
+}
+
+.order-seats .order-seat-list {
+  margin-top: 0;
 }
 
 .order-seat {
@@ -668,6 +692,32 @@ input {
 .order-total strong {
   color: #86efac;
   font-size: 1.25rem;
+}
+
+.order-qr {
+  display: grid;
+  justify-items: center;
+  gap: 0.65rem;
+  width: fit-content;
+  margin: 1.25rem auto 0;
+  padding: 1rem 1.25rem;
+  border: 1px solid rgba(148,163,184,0.18);
+  border-radius: 16px;
+  background: rgba(255,255,255,0.04);
+}
+
+.order-qr svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  padding: 0.45rem;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.order-qr strong {
+  color: #fda4af;
+  font-size: 0.9rem;
 }
 
 .orders-empty {
@@ -965,5 +1015,57 @@ input {
 
   .pix-code {
     flex-direction: column;
+  }
+}
+
+@media (max-width: 640px) {
+  .header-top {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .logo {
+    gap: 0.65rem;
+  }
+
+  .logo svg {
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
+  }
+
+  .header-actions,
+  .header-actions .nav-button {
+    width: 100%;
+    box-sizing: border-box;
+    justify-content: center;
+  }
+
+  .legend-cinema {
+    flex-wrap: wrap;
+    gap: 0.75rem 1.25rem;
+    margin-top: 1.5rem;
+  }
+
+  .screen-container {
+    margin-bottom: 1.5rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .logo span {
+    font-size: 0.76rem;
+  }
+
+  .screen-header {
+    padding-inline: 0.25rem;
+  }
+
+  .schedule-panel {
+    padding: 0.9rem;
+  }
+
+  .order-card {
+    padding: 0.9rem;
   }
 }

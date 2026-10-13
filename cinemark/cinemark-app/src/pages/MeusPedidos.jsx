@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import api from '../services/api';
 import { Link } from 'react-router-dom';
+import { QRCodeSVG } from 'qrcode.react';
 
 
 function formatDateTime(value) {
@@ -56,9 +57,10 @@ export default function MeusPedidos() {
   const pedidosAgrupados = Object.values(pedidos.reduce((grupos, ingresso) => {
     const chave = `${ingresso.pedido || ingresso.cod}-${ingresso.dia_agendamento}`;
     if (!grupos[chave]) {
-      grupos[chave] = { ...ingresso, assentos: [] };
+      grupos[chave] = { ...ingresso, assentos: [], ingressos: [] };
     }
     grupos[chave].assentos.push(`${ingresso.fileira}${ingresso.numero_assento}`);
+    grupos[chave].ingressos.push(ingresso.ingresso_id);
     return grupos;
   }, {}));
 
@@ -120,18 +122,32 @@ export default function MeusPedidos() {
                   <strong>Agendamento para o dia:</strong>
                   <span>{formatAppointment(pedido.dia_agendamento)}</span>
                 </div>
-              </div>
-              <div className="order-seats">
-                <strong>Assentos</strong>
-                <div className="order-seat-list">
-                  {pedido.assentos.map((assento) => (
-                    <span className="order-seat" key={assento}>{assento}</span>
-                  ))}
+                <div className="order-item order-seats">
+                  <strong>Assentos</strong>
+                  <div className="order-seat-list">
+                    {pedido.assentos.map((assento) => (
+                      <span className="order-seat" key={assento}>{assento}</span>
+                    ))}
+                  </div>
                 </div>
               </div>
               <div className="order-total">
                 <span>{pedido.assentos.length} ingresso(s)</span>
                 <strong>{formatCurrency(pedido.valor_total)}</strong>
+              </div>
+              <div className="order-qr">
+                <QRCodeSVG
+                  value={JSON.stringify({
+                    pedido: pedido.pedido,
+                    ingressos: pedido.ingressos,
+                  })}
+                  size={144}
+                  level="M"
+                  bgColor="#ffffff"
+                  fgColor="#0f172a"
+                  title={`QR Code do pedido ${pedido.pedido || pedido.ingresso_id}`}
+                />
+                <strong>Validar na entrada</strong>
               </div>
             </article>
           ))}
