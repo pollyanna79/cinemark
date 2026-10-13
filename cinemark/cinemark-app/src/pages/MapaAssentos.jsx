@@ -5,6 +5,8 @@ import { Armchair, CreditCard } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { FaQrcode } from 'react-icons/fa';
 
+const CODIGO_PIX = 'PIX1234567890ABCDEF';
+const PRECO_INGRESSO = 20;
 
 
 export default function MapaAssentos() {
@@ -18,7 +20,6 @@ export default function MapaAssentos() {
   const [selectedSeats, setSelectedSeats] = useState([]);
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
-  const [telefone, setTelefone] = useState('');
   const [meioPagamento, setMeioPagamento] = useState('cartão');
   const [mensagem, setMensagem] = useState('');
   const [erro, setErro] = useState('');
@@ -91,7 +92,7 @@ const validarCartao = (numero) => {
 
   if (visa.test(apenasNumeros)) return 'Visa';
   if (master.test(apenasNumeros)) return 'Mastercard';
-  if (amec.test(apenasNumeros)) return 'American Express';
+  if (amex.test(apenasNumeros)) return 'American Express';
   
   return 'Outra';
 };
@@ -113,8 +114,8 @@ const validarValidade = (validade) => {
   setErro('');
 
   // 1. Validação Geral de campos obrigatórios
-  if (!nome || !email || !telefone || selectedSeats.length === 0) {
-    setErro('Preencha nome, email, telefone e selecione pelo menos um assento.');
+  if (!nome || !email || selectedSeats.length === 0) {
+    setErro('Preencha nome, email e selecione pelo menos um assento.');
     return;
   }
 
@@ -122,7 +123,6 @@ const validarValidade = (validade) => {
   if (nome.length < 3) return setErro("Digite seu nome completo.");
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) return setErro("Email inválido.");
-  if (telefone.replace(/\D/g, '').length < 10) return setErro("Telefone inválido.");
 
   // 3. Validação Específica de Cartão
   if (meioPagamento === 'cartão') {
@@ -139,7 +139,7 @@ const validarValidade = (validade) => {
       return setErro("O nome no cartão deve ser igual ao nome do titular.");
     }
     if (!validarValidade(cartaoData)) return setErro("Cartão vencido ou vencimento inválido.");
-    if (validarCartao(cartaoNumero) === 'Desconhecida') return setErro("Bandeira não suportada ou número inválido.");
+    if (validarCartao(cartaoNumero) === 'Outra') return setErro("Bandeira não suportada ou número inválido.");
   }
 
   if (!sessao) {
@@ -153,17 +153,17 @@ const validarValidade = (validade) => {
     const response = await api.post('/reservar', {
       nome,
       email,
-      telefone,
       meio_pagamento: meioPagamento,
-      dados_pagamento: meioPagamento === 'cartão' ? cartaoNumero : 'PIX_PAGO',
-      codigo_s: meioPagamento === 'cartão' ? cartaoCvc : null, 
+      dados_pagamento: meioPagamento === 'cartão'
+        ? cartaoNumero.replace(/\D/g, '').slice(-4)
+        : CODIGO_PIX,
       sessao_id: sessao.sessao_id,
       sala_id: sessao.sala_id, // Certifique-se que essa variável existe
       assento_ids: selectedSeats,
     });
 
     // Limpeza após sucesso
-    setNome(''); setEmail(''); setTelefone('');
+    setNome(''); setEmail('');
     setCartaoNumero(''); setCartaoData(''); setCartaoCvc(''); setNomeNoCartao('');
     setMeioPagamento('cartão'); setSelectedSeats([]);
 
@@ -214,6 +214,7 @@ const validarValidade = (validade) => {
         </div>
 
         {erro && <div className="alert alert-danger">{erro}</div>}
+        {sessaoError && <div className="alert alert-danger">{sessaoError}</div>}
         {mensagem && <div className="alert alert-success">{mensagem}</div>}
 
         <div className="cinema-room">
@@ -279,11 +280,6 @@ const validarValidade = (validade) => {
     <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" />
   </div>
   
-  <div className="field-group">
-    <label>Telefone</label>
-    <input type="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="(00) 00000-0000" />
-  </div>
-
   <fieldset className="payment-choice">
     <legend>Meio de pagamento</legend>
     <div className="payment-options" role="radiogroup" aria-label="Meio de pagamento">
@@ -330,8 +326,8 @@ const validarValidade = (validade) => {
           </div>
         </div>
         <div className="pix-code">
-          <input aria-label="Código Pix" readOnly value="PIX1234567890ABCDEF" />
-          <button type="button" onClick={() => copiarTexto("PIX1234567890ABCDEF")}>Copiar código</button>
+          <input aria-label="Código Pix" readOnly value={CODIGO_PIX} />
+          <button type="button" onClick={() => copiarTexto(CODIGO_PIX)}>Copiar código</button>
         </div>
       </div>
         
@@ -384,7 +380,7 @@ const validarValidade = (validade) => {
             />
           </label>
         </div>
-        <p className="secure-info">🔒 Seus dados do cartão são protegidos.</p>
+        <p className="secure-info">Somente os quatro últimos dígitos são registrados. O código de segurança não é armazenado.</p>
       </div>
     )}
   </div>
@@ -393,6 +389,8 @@ const validarValidade = (validade) => {
   <div className="field-group selected-summary">
     <strong>Assentos selecionados:</strong>
     <span>{selectedLabels.length > 0 ? selectedLabels.join(', ') : 'Nenhum assento selecionado'}</span>
+    <span>{selectedSeats.length} ingresso(s) × R$ {PRECO_INGRESSO.toFixed(2).replace('.', ',')}</span>
+    <strong>Total da compra: R$ {(selectedSeats.length * PRECO_INGRESSO).toFixed(2).replace('.', ',')}</strong>
   </div>
   
   <button className="btn-submit" type="submit" disabled={loading}>

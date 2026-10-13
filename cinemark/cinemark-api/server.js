@@ -2,7 +2,9 @@ require('dotenv').config();
 const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
+const crypto = require('node:crypto');
 
+const PRECO_INGRESSO = 20;
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -20,6 +22,11 @@ const db = mysql.createPool({
     rejectUnauthorized: false
   }
 });
+
+
+
+const gerarNumeroPedido = () => `CINE${crypto.randomInt(1000, 10000)}`;
+
 // Teste de conexão imediato
 db.getConnection((err, connection) => {
   if (err) {
@@ -135,11 +142,35 @@ app.get('/assentos/sala/:id', (req, res) => {
 });
 
 app.post('/reservar', (req, res) => {
-  const { nome, email, telefone, meio_pagamento, dados_cartao, sessao_id, sala_id, assento_ids } = req.body;
+  const { nome, email, meio_pagamento, dados_pagamento, sessao_id, sala_id, assento_ids } = req.body;
 
-  if (!nome || !email || !telefone || !meio_pagamento || !sessao_id || !sala_id || !Array.isArray(assento_ids) || assento_ids.length === 0){
+  if (!nome || !email || !meio_pagamento || !sessao_id || !sala_id || !Array.isArray(assento_ids) || assento_ids.length === 0){
     return res.status(400).json({ error: 'Preencha todos os campos e selecione pelo menos um assento.' });
-  } 
+  }
+
+  const meioPagamentoLower = String(meio_pagamento).trim().toLowerCase();
+  const meioPagamentoEscolhido = meioPagamentoLower === 'pix'
+    ? 'pix'
+    : ['cartão', 'cartao', 'card'].includes(meioPagamentoLower)
+      ? 'cartao'
+      : null;
+
+  if (!meioPagamentoEscolhido) {
+    return res.status(400).json({ error: 'Selecione Pix ou cartão como meio de pagamento.' });
+  }
+
+  const dadosPagamentoInformados = String(dados_pagamento || '').trim();
+  const dadosPagamentoValor = meioPagamentoEscolhido === 'pix'
+    ? dadosPagamentoInformados
+    : `****${dadosPagamentoInformados}`;
+
+  if (
+    (meioPagamentoEscolhido === 'pix' && !dadosPagamentoInformados) ||
+    (meioPagamentoEscolhido === 'cartao' && !/^\d{4}$/.test(dadosPagamentoInformados))
+  ) {
+    return res.status(400).json({ error: 'Informe o código Pix ou somente os quatro últimos dígitos do cartão.' });
+  }
+
   db.getConnection((err, connection) => {
     if (err) return res.status(500).json({ error: 'Erro interno ao conectar ao banco de dados.' });
 
@@ -148,7 +179,7 @@ app.post('/reservar', (req, res) => {
         connection.release();
         return res.status(500).json({ error: 'Erro interno ao iniciar transação.' });
       }
-const findCliente = 'SELECT id_cliente FROM registro_clientes WHERE email = ? LIMIT 1';
+      const findCliente = 'SELECT id_cliente FROM registro_clientes WHERE email = ? LIMIT 1';
       connection.query(findCliente, [email], (findErr, findResult) => {
         if (findErr) {
           return connection.rollback(() => {
@@ -201,38 +232,34 @@ const findCliente = 'SELECT id_cliente FROM registro_clientes WHERE email = ? LI
                 }
 
                 connection.release();
-                res.json({ message: 'Reserva realizada com sucesso!', clienteId, assentos: assento_ids });
+                res.json({
+                  message: 'Reserva realizada com sucesso!',
+                  clienteId,
+                  assentos: assento_ids,
+                  codigo_pedido: numeroPedido,
+                  valor_total: assento_ids.length * PRECO_INGRESSO
+                });
               });
             });
           });
         };
-const codigoS = 'RSV' + Math.random().toString(36).substring(2, 8).toUpperCase();
-        const numeroPedido = 'CINE' + Math.floor(1000 + Math.random() * 9000);
-        const meioPagamentoLower = meio_pagamento ? meio_pagamento.toLowerCase() : 'pix';
-        const meioPagamentoEscolhido = meioPagamentoLower.includes('pix') ? 'pix' : 'cartao';
-        
-        let dadosPagamentoValor;
-        if (meioPagamentoEscolhido === 'pix') {
-          dadosPagamentoValor = codigoS; 
-        } else {
-          dadosPagamentoValor = dados_cartao || telefone || '-'; 
-        }
+        const numeroPedido = gerarNumeroPedido();
 
         if (findResult.length > 0) {
-          // SE O CLIENTE JÁ EXISTE: Atualizamos os dados da nova compra dele na tabela
           const clienteId = findResult[0].id_cliente;
           const updateCliente = `
             UPDATE registro_clientes 
-            SET nome = ?, meio_pagamento = ?, dados_pagamento = ?, codigo_s = ?, pedido = ? 
+            SET nome = ?, email = ?, meio_pagamento = ?, dados_pagamento = ?, codigo_s = ?, pedido = ?
             WHERE id_cliente = ?
           `;
 
           connection.query(updateCliente, [
-            nome, 
-            meioPagamentoEscolhido, 
-            dadosPagamentoValor, 
-            codigoS, 
-            numeroPedido, 
+            nome,
+            email,
+            meioPagamentoEscolhido,
+            dadosPagamentoValor,
+            '--',
+            numeroPedido,
             clienteId
           ], (updateErr) => {
             if (updateErr) {
@@ -245,20 +272,18 @@ const codigoS = 'RSV' + Math.random().toString(36).substring(2, 8).toUpperCase()
           });
 
         } else {
-          // SE O CLIENTE NÃO EXISTE: Criamos um novo registro
           const insertCliente = `
             INSERT INTO registro_clientes 
-            (nome, email, senha, meio_pagamento, dados_pagamento, codigo_s, pedido) 
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            (nome, email, meio_pagamento, dados_pagamento, codigo_s, pedido)
+            VALUES (?, ?, ?, ?, ?, ?)
           `;
 
           connection.query(insertCliente, [
-            nome, 
-            email, 
-            '####', 
-            meioPagamentoEscolhido, 
-            dadosPagamentoValor, 
-            codigoS, 
+            nome,
+            email,
+            meioPagamentoEscolhido,
+            dadosPagamentoValor,
+            '--',
             numeroPedido
           ], (clienteErr, clienteResult) => {
             if (clienteErr) {
@@ -270,7 +295,10 @@ const codigoS = 'RSV' + Math.random().toString(36).substring(2, 8).toUpperCase()
 
             insertIngressos(clienteResult.insertId);
           });
-        }      
+        }
+      });
+    });
+  });
 });
 app.get('/meus-pedidos', (req, res) => {
   const { email } = req.query;
@@ -290,10 +318,17 @@ i.id AS ingresso_id,
     f.estreia AS data_filme,
     c.id_cliente AS cod,
     c.nome AS nome,
+    c.pedido AS pedido,
     i.data_compra AS data_compra,
+    (
+      SELECT COUNT(*) * ${PRECO_INGRESSO}
+      FROM ingressos total
+      WHERE total.id_cliente = i.id_cliente
+        AND total.data_compra = i.data_compra
+    ) AS valor_total,
     a.sala_id AS sala,
     a.fileira AS fileira,
-    a.id AS poltrona_id,
+    a.numero AS numero_assento,
     i.status AS status_pagamento
 FROM ingressos i
 JOIN sessoes s ON i.sessao_id = s.id
@@ -325,4 +360,3 @@ const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log(`Servidor rodando em http://localhost:${port}`);
 });
-
