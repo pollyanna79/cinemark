@@ -124,14 +124,20 @@ app.get('/assentos/sala/:id', (req, res) => {
   const { sessao_id } = req.query; // Passamos o ID da sessão via query string
 
   const query = `
-    SELECT 
+    SELECT
         a.id, a.fileira, a.numero,
-        CASE 
-            WHEN i.id IS NOT NULL THEN 'ocupado'
+        CASE
+            WHEN EXISTS (
+                SELECT 1
+                FROM ingressos i
+                JOIN registro_clientes c ON c.id_cliente = i.id_cliente
+                WHERE i.assento_id = a.id
+                  AND i.sessao_id = ?
+                  AND c.dia_agendamento >= CURRENT_TIMESTAMP
+            ) THEN 'ocupado'
             ELSE 'disponivel'
         END AS status_visual
     FROM assentos a
-    LEFT JOIN ingressos i ON a.id = i.assento_id AND i.sessao_id = ?
     WHERE a.sala_id = ?
     ORDER BY a.fileira DESC, a.numero ASC;
   `;
@@ -245,10 +251,12 @@ app.post('/reservar', (req, res) => {
 
         const insertIngressos = (clienteId) => {
           const checkQuery = `
-            SELECT assento_id
-            FROM ingressos
-            WHERE sessao_id = ?
-              AND assento_id IN (?);
+            SELECT i.assento_id
+            FROM ingressos i
+            JOIN registro_clientes c ON c.id_cliente = i.id_cliente
+            WHERE i.sessao_id = ?
+              AND i.assento_id IN (?)
+              AND c.dia_agendamento >= CURRENT_TIMESTAMP;
           `;
 
           connection.query(checkQuery, [sessao_id, assento_ids], (checkErr, occupiedSeats) => {
