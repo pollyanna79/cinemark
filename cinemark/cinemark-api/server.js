@@ -290,6 +290,7 @@ app.post('/reservar', (req, res) => {
 
             connection.query(insertQuery, [ingressosValues], (ingressoErr) => {
               if (ingressoErr) {
+                console.error('Erro ao gravar ingressos:', ingressoErr);
                 return connection.rollback(() => {
                   connection.release();
                   res.status(500).json({ error: 'Erro ao gravar ingressos.' });
