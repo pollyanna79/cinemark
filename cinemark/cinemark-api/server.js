@@ -130,10 +130,9 @@ app.get('/assentos/sala/:id', (req, res) => {
             WHEN EXISTS (
                 SELECT 1
                 FROM ingressos i
-                JOIN registro_clientes c ON c.id_cliente = i.id_cliente
                 WHERE i.assento_id = a.id
                   AND i.sessao_id = ?
-                  AND c.dia_agendamento >= CURRENT_TIMESTAMP
+                  AND i.agenda >= CURRENT_TIMESTAMP
             ) THEN 'ocupado'
             ELSE 'disponivel'
         END AS status_visual
@@ -253,10 +252,9 @@ app.post('/reservar', (req, res) => {
           const checkQuery = `
             SELECT i.assento_id
             FROM ingressos i
-            JOIN registro_clientes c ON c.id_cliente = i.id_cliente
             WHERE i.sessao_id = ?
               AND i.assento_id IN (?)
-              AND c.dia_agendamento >= CURRENT_TIMESTAMP;
+              AND i.agenda >= CURRENT_TIMESTAMP;
           `;
 
           connection.query(checkQuery, [sessao_id, assento_ids], (checkErr, occupiedSeats) => {
@@ -284,9 +282,10 @@ app.post('/reservar', (req, res) => {
               clienteId,
               now,
               statusPagamento,
-              clienteId
+              clienteId,
+              agendamentoParaBanco
             ]);
-            const insertQuery = 'INSERT INTO ingressos (sessao_id, assento_id, usuario_id, data_compra, status, id_cliente) VALUES ?';
+            const insertQuery = 'INSERT INTO ingressos (sessao_id, assento_id, usuario_id, data_compra, status, id_cliente, agenda) VALUES ?';
 
             connection.query(insertQuery, [ingressosValues], (ingressoErr) => {
               if (ingressoErr) {
@@ -397,7 +396,7 @@ i.id AS ingresso_id,
     c.id_cliente AS cod,
     c.nome AS nome,
     c.pedido AS pedido,
-    DATE_FORMAT(c.dia_agendamento, '%Y-%m-%d %H:%i') AS dia_agendamento,
+    DATE_FORMAT(i.agenda, '%Y-%m-%d %H:%i') AS dia_agendamento,
     i.data_compra AS data_compra,
     (
       SELECT COUNT(*) * ${PRECO_INGRESSO}
